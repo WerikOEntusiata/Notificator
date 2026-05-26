@@ -1,11 +1,9 @@
-import NotificationReceiver from '@/components/NotificationReceiver';
-import { MadeWithDyad } from '@/components/made-with-dyad';
+import Dashboard from '@/components/Dashboard';
 
 export default function Home() {
   return (
-    <div className="h-screen flex flex-col">
-      <NotificationReceiver />
-      <MadeWithDyad />
-    </div>
+    <main className="min-h-screen bg-background">
+      <Dashboard />
+    </main>
   );
 }
