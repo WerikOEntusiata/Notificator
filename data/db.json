@@ -69,12 +69,12 @@
         "impressions": 15668,
         "clicks": 262,
         "reach": 9685,
-        "messages": 77,
+        "messages": 39,
         "cpm": 11.792188,
         "ctr": 1.672198,
         "cpc": 0.705191,
         "frequency": 1.617759,
-        "conversions": 77,
+        "conversions": 39,
         "roas": 0,
         "videoView25": 0,
         "videoView75": 0
@@ -88,12 +88,31 @@
         "impressions": 8099,
         "clicks": 205,
         "reach": 4693,
-        "messages": 59,
+        "messages": 30,
         "cpm": 20.57538,
         "ctr": 2.531177,
         "cpc": 0.812878,
         "frequency": 1.725762,
-        "conversions": 59,
+        "conversions": 30,
+        "roas": 0,
+        "videoView25": 0,
+        "videoView75": 0
+      },
+      {
+        "id": "meta-5",
+        "campaignName": "Teste",
+        "adSetName": "Ver Detalhes",
+        "adName": "Ver Detalhes",
+        "spend": 0,
+        "impressions": 0,
+        "clicks": 0,
+        "reach": 0,
+        "messages": null,
+        "cpm": 0,
+        "ctr": 0,
+        "cpc": 0,
+        "frequency": 0,
+        "conversions": null,
         "roas": 0,
         "videoView25": 0,
         "videoView75": 0
@@ -103,7 +122,7 @@
       {
         "date": "21 de mai.",
         "spend": 52.66,
-        "messages": 27,
+        "messages": 14,
         "impressions": 3426,
         "clicks": 86,
         "reach": 2541
@@ -111,7 +130,7 @@
       {
         "date": "22 de mai.",
         "spend": 210.95,
-        "messages": 78,
+        "messages": 39,
         "impressions": 13504,
         "clicks": 262,
         "reach": 8692
@@ -119,7 +138,7 @@
       {
         "date": "23 de mai.",
         "spend": 87.79,
-        "messages": 28,
+        "messages": 14,
         "impressions": 6837,
         "clicks": 119,
         "reach": 5292
@@ -127,7 +146,7 @@
       {
         "date": "24 de mai.",
         "spend": 0,
-        "messages": 3,
+        "messages": 2,
         "impressions": 0,
         "clicks": 0,
         "reach": 0
@@ -138,13 +157,13 @@
       "impressions": 23767,
       "reach": 13318,
       "clicks": 467,
-      "messages": 136,
+      "messages": 69,
       "frequency": 1.784577,
       "cpm": 14.785206,
       "cpc": 0.752463,
       "ctr": 1.964909,
-      "costPerMessage": 2.5838235294117644,
-      "messageRate": 29.1220556745182,
+      "costPerMessage": 5.092753623188406,
+      "messageRate": 14.775160599571734,
       "vvr": 0,
       "spendChange": 0,
       "messagesChange": 0,
@@ -154,7 +173,7 @@
       "funnelImpressions": 23767,
       "funnelReach": 13318,
       "funnelClicks": 467,
-      "funnelMessages": 136,
+      "funnelMessages": 69,
       "funnelVideo25": 0,
       "funnelVideo75": 0
     }

@@ -3,6 +3,16 @@ import { JSONFile } from 'lowdb/node';
 import path from 'path';
 import fs from 'fs';
 
+interface Client {
+  id: string;
+  name: string;
+  slug: string;
+  metaAdsAccountId: string;
+  metaAdsAccessToken: string;
+  createdAt: string;
+  isActive: boolean;
+}
+
 interface DbSchema {
   examples: { id: number; name: string; createdAt: string }[];
   notifications: { 
@@ -17,6 +27,7 @@ interface DbSchema {
     daily: any[];
     totals: Record<string, any>;
   };
+  clients: Client[];
 }
 
 const DB_FILE_NAME = 'db.json';
@@ -44,7 +55,8 @@ export async function getDb(): Promise<Low<DbSchema>> {
     dbInstance = new Low<DbSchema>(adapter, { 
       examples: [],
       notifications: [],
-      metrics: { campaigns: [], daily: [], totals: {} }
+      metrics: { campaigns: [], daily: [], totals: {} },
+      clients: []
     });
 
     await dbInstance.read();
