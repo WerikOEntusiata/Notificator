@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Download, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
+import { Settings, Download, Calendar, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { usePdfDownload } from '@/hooks/use-pdf-download';
+import { toast } from 'sonner';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 const formatNumber = (val: number) => new Intl.NumberFormat('pt-BR').format(val);
@@ -58,6 +60,7 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { generatePdf, generating } = usePdfDownload();
 
   const fetchMetrics = useCallback(async (p: string) => {
     setLoading(true);
@@ -82,6 +85,17 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
   useEffect(() => {
     fetchMetrics(period);
   }, [period, fetchMetrics]);
+
+  const handleDownloadPdf = async () => {
+    const clientName = data?.clientName || 'relatorio';
+    const slugName = slug;
+    try {
+      await generatePdf('dashboard-content', `${clientName}-${slugName}`);
+      toast.success('PDF baixado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
 
   if (loading && !data) {
     return (
@@ -153,6 +167,21 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
 
           <div className="flex items-center gap-2 flex-wrap">
             <Button
+              variant="outline"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+              onClick={handleDownloadPdf}
+              disabled={generating || loading}
+            >
+              {generating ? (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              ) : (
+                <Download size={14} className="mr-2" />
+              )}
+              {generating ? 'Gerando...' : 'Baixar PDF'}
+            </Button>
+
+            <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
@@ -177,7 +206,7 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
         </div>
       </header>
 
-      <main className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
+      <main id="dashboard-content" className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
         {data?.status === 'config-required' && (
           <div className="bg-blue-900/30 border border-blue-800 p-4 rounded text-sm text-blue-200">
             <strong>Configuração necessária:</strong> Verifique as credenciais da conta de anúncios.

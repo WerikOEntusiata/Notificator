@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import SparklineChart from '@/components/ui/SparklineChart';
 import FunnelChart from '@/components/FunnelChart';
-import { Settings, Download, Calendar, Cloud, AlertCircle, RefreshCw } from 'lucide-react';
+import { Settings, Download, Calendar, Cloud, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { usePdfDownload } from '@/hooks/use-pdf-download';
+import { toast } from 'sonner';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 const formatNumber = (val: number) => new Intl.NumberFormat('pt-BR').format(val);
@@ -17,6 +19,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState('30d');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { generatePdf, generating } = usePdfDownload();
 
   const fetchMetrics = useCallback(async (p: string) => {
     setLoading(true);
@@ -35,6 +38,15 @@ export default function Dashboard() {
   useEffect(() => {
     fetchMetrics(period);
   }, [period, fetchMetrics]);
+
+  const handleDownloadPdf = async () => {
+    try {
+      await generatePdf('dashboard-content', 'relatorio-meta-ads');
+      toast.success('PDF baixado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
 
   const campaigns = data?.campaigns || [];
   const daily = data?.daily || [];
@@ -88,7 +100,20 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 flex-wrap">
              <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"><Settings size={16} /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"><Download size={16} /></Button>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 h-8"
+                  onClick={handleDownloadPdf}
+                  disabled={generating || loading}
+                >
+                  {generating ? (
+                    <Loader2 size={14} className="mr-1 animate-spin" />
+                  ) : (
+                    <Download size={14} className="mr-1" />
+                  )}
+                  {generating ? 'Gerando...' : 'PDF'}
+                </Button>
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -120,7 +145,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
+      <main id="dashboard-content" className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
         {data?.status === 'config-required' && (
           <div className="bg-blue-900/30 border border-blue-800 p-4 rounded text-sm text-blue-200">
             <strong>Configuração necessária:</strong> Adicione as variáveis `META_ADS_ACCESS_TOKEN` e `META_ADS_ACCOUNT_ID` no seu ambiente para ativar a integração.

@@ -313,5 +313,16 @@
       "funnelVideo25": 0,
       "funnelVideo75": 0
     }
-  }
+  },
+  "clients": [
+    {
+      "id": "d92f43cf-8d70-45c0-8f2c-e4cd0259b8ae",
+      "name": "OMNI CATANDUVA",
+      "slug": "omni-cf8435",
+      "metaAdsAccountId": "810729241939443",
+      "metaAdsAccessToken": "EAAXEaq1tVqwBRgw74P0EZAWmLSBRaNL0WyZAKHTLDfgHbj2gSvEPE6ZAsJZAGlYWcJ7PVx5Qq5dMFZB2fVK3oSqXvXwZAAZBmkXVguMrv9KfBTGzywugvwK3GZAIJBGDq6bKfVOXcMnebHLR0A5FwKgXTykKTKvpQX3kw39PILphgvPfTNd83dCk4ivSazXX7mbihQC7qtgMgADxRFh3OipBekuY82Msoml5CSqk",
+      "createdAt": "2026-05-26T08:56:54.095Z",
+      "isActive": true
+    }
+  ]
 }
