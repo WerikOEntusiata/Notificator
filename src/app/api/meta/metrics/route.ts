@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/database';
-import { mockCampaigns, mockDailyMetrics, totalMetrics } from '@/lib/mock-meta-data';
 
 function getDateRangeForMeta(period: string) {
   const now = new Date();
@@ -215,7 +214,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Modo Automático (Auto): Tenta API -> Se falhar usa DB -> Se não tem DB usa Mock
+    // 3. Modo Automático (Auto): Tenta API -> Se falhar usa DB -> Se não tem DB usa Vazio
     const metaResult = await fetchMetaAdsData(period);
     if (metaResult.status === 'live-meta') {
       db.data.metrics = {
@@ -232,13 +231,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...db.data.metrics, source: 'manual' });
     }
 
-    // Fallback Final para dados simulados
+    // Retorno Vazio (Sem Mock)
     return NextResponse.json({
-      campaigns: mockCampaigns,
-      daily: mockDailyMetrics,
-      totals: totalMetrics,
-      status: 'mock',
-      source: 'mock'
+      campaigns: [],
+      daily: [],
+      totals: {},
+      status: 'empty',
+      source: 'empty'
     });
   } catch (error) {
     console.error('Erro geral ao buscar métricas:', error);
