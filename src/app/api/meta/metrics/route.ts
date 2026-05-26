@@ -25,21 +25,25 @@ function getDateRangeForMeta(period: string) {
 }
 
 // Função robusta para extrair mensagens da API da Meta
-function extractMessages(actions: any[] | undefined): number {
-  if (!actions || !Array.isArray(actions)) return 0;
+function extractMessages(data: any): number {
   let count = 0;
-  actions.forEach(a => {
-    const type = a.action_type || '';
-    // Aceita variações comuns do tipo de ação para mensagens
-    if (
-      type === 'onsite_conversion.messaging_conversation_started' ||
-      type === 'messaging_conversation_started' ||
-      type.includes('message') ||
-      type.includes('messaging')
-    ) {
-      count += parseInt(a.value || '0');
-    }
-  });
+  
+  // 1. Tenta encontrar nas ações explícitas (busca por variações comuns)
+  if (data.actions && Array.isArray(data.actions)) {
+    data.actions.forEach((a: any) => {
+      const type = (a.action_type || '').toLowerCase();
+      if (type.includes('message') || type.includes('messaging') || type.includes('contact')) {
+        count += parseInt(a.value || '0');
+      }
+    });
+  }
+  
+  // 2. Fallback: Se não achou ações de mensagem, usa 'results'
+  // (Assume-se que a campanha é otimizada para mensagens se o total de ações de mensagem for 0)
+  if (count === 0 && data.results) {
+     count = parseInt(data.results || '0');
+  }
+
   return count;
 }
 
@@ -55,10 +59,13 @@ async function fetchMetaAdsData(period: string = '30d') {
   const baseUrl = `https://graph.facebook.com/v19.0/${formattedId}/insights`;
   const timeRange = getDateRangeForMeta(period);
 
+  // Adicionado 'results' para fallback de contagem
+  const fields = 'spend,impressions,reach,clicks,frequency,actions,results,cpm,cpc,ctr';
+
   try {
     // 1. Buscar Totais (Nível da Conta)
     const totalsRes = await fetch(
-      `${baseUrl}?access_token=${token}&level=account&fields=spend,impressions,reach,clicks,frequency,actions,cpm,cpc,ctr&time_range=${encodeURIComponent(timeRange)}`
+      `${baseUrl}?access_token=${token}&level=account&fields=${fields}&time_range=${encodeURIComponent(timeRange)}`
     );
     const totalsJson = await totalsRes.json();
 
@@ -67,7 +74,7 @@ async function fetchMetaAdsData(period: string = '30d') {
     }
 
     const t = totalsJson.data[0];
-    const msgs = extractMessages(t.actions);
+    const msgs = extractMessages(t);
 
     const finalTotals = {
       ...totalMetrics,
@@ -85,14 +92,14 @@ async function fetchMetaAdsData(period: string = '30d') {
 
     // 2. Buscar Campanhas
     const campRes = await fetch(
-      `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_name,spend,impressions,reach,clicks,actions&time_range=${encodeURIComponent(timeRange)}&limit=50`
+      `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_name,${fields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
     );
     const campJson = await campRes.json();
 
     let finalCampaigns: any[] = [];
     if (campJson.data && campJson.data.length > 0) {
       finalCampaigns = campJson.data.map((c: any, i: number) => {
-         const campMsgs = extractMessages(c.actions);
+         const campMsgs = extractMessages(c);
          return {
           id: `meta-${i}`,
           campaignName: c.campaign_name,
