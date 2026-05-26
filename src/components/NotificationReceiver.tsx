@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { Bell, Volume2, ExternalLink } from 'lucide-react';
+import { Bell, Volume2, Send, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 interface Notification {
@@ -15,6 +16,7 @@ interface Notification {
 
 export default function NotificationReceiver() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [message, setMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<number | null>(null);
 
@@ -36,8 +38,16 @@ export default function NotificationReceiver() {
       if (res.ok) {
         const data: Notification[] = await res.json();
         
+        // Check for new notifications
         if (data.length > notifications.length) {
-          playLoudAlert();
+          // Only play sound for external alerts, not user-sent messages
+          const newMessages = data.filter(n => !notifications.find(existing => existing.id === n.id));
+          const hasExternalAlert = newMessages.some(n => n.source !== 'user');
+          
+          if (hasExternalAlert) {
+            playLoudAlert();
+          }
+          
           setNotifications(data);
           lastIdRef.current = data[data.length - 1].id;
         } else if (data.length > 0 && lastIdRef.current !== data[data.length - 1].id) {
@@ -91,6 +101,34 @@ export default function NotificationReceiver() {
     toast.info('Testando alerta sonoro');
   };
 
+  const sendMessage = async () => {
+    if (!message.trim()) return;
+
+    try {
+      const res = await fetch('/api/webhook/notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message, 
+          title: 'Mensagem Manual',
+          source: 'user' 
+        }),
+      });
+
+      if (res.ok) {
+        setMessage('');
+        // Refresh to get the message back from DB with its ID
+        fetchNotifications(); 
+        toast.success('Mensagem enviada!');
+      } else {
+        toast.error('Erro ao enviar mensagem');
+      }
+    } catch (error) {
+      console.error('Failed to send notification', error);
+      toast.error('Erro de conexão');
+    }
+  };
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('pt-BR', { 
@@ -105,6 +143,7 @@ export default function NotificationReceiver() {
       'external-api': 'API Externa',
       'monitoring': 'Monitoramento',
       'webhook': 'Webhook',
+      'user': 'Você',
     };
     return labels[source] || source;
   };
@@ -139,23 +178,29 @@ export default function NotificationReceiver() {
           notifications.map((notification) => (
             <div
               key={notification.id}
-              className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300"
+              className={`flex ${notification.source === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
             >
-              <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl rounded-br-none px-4 py-3 shadow-sm">
-                {notification.title && (
-                  <p className="text-sm font-semibold text-blue-100 mb-1">
+              <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
+                notification.source === 'user' 
+                  ? 'bg-blue-600 text-white rounded-br-none' 
+                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-200 dark:border-gray-700'
+              }`}>
+                {notification.title && notification.source !== 'user' && (
+                  <p className={`text-xs font-semibold mb-1 ${
+                    notification.source === 'user' ? 'text-blue-100' : 'text-blue-600 dark:text-blue-400'
+                  }`}>
                     {notification.title}
                   </p>
                 )}
                 <p className="text-base break-words">{notification.message}</p>
-                <div className="flex items-center justify-between mt-2 text-xs text-blue-100">
+                <div className="flex items-center justify-between mt-2 text-xs opacity-70">
                   {notification.source && (
-                    <span className="flex items-center gap-1 bg-blue-700 px-2 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1">
                       <ExternalLink size={10} />
                       {getSourceLabel(notification.source)}
                     </span>
                   )}
-                  <span className="ml-auto">
+                  <span className={notification.source === 'user' ? 'ml-auto' : 'ml-auto'}>
                     {formatTime(notification.timestamp)}
                   </span>
                 </div>
@@ -164,6 +209,26 @@ export default function NotificationReceiver() {
           ))
         )}
         <div ref={messagesEndRef} />
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 p-4 border-t dark:border-gray-700 max-w-md mx-auto w-full">
+        <div className="flex gap-2">
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Testar envio de notificação..."
+            className="flex-1"
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          />
+          <Button
+            onClick={sendMessage}
+            disabled={!message.trim()}
+            size="icon"
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Send size={18} />
+          </Button>
+        </div>
       </div>
     </div>
   );
