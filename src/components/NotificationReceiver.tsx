@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { Bell, Volume2, ExternalLink, Copy, Check, Key } from 'lucide-react';
+import { Bell, Volume2, ExternalLink, Copy, Check, Key, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -19,15 +19,23 @@ export default function NotificationReceiver() {
   const [copied, setCopied] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('...');
   
-  // Novo estado para garantir que o primeiro carregamento não dispare som
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setWebhookUrl(`${window.location.origin}/api/webhook/notification`);
+      
+      // Detecta iOS
+      const ua = window.navigator.userAgent;
+      const isIOSDevice = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+      setIsIOS(isIOSDevice);
+
       if ('Notification' in window) {
         if (Notification.permission === 'granted') {
           setPermissionGranted(true);
@@ -38,14 +46,42 @@ export default function NotificationReceiver() {
 
   useEffect(() => {
     fetchNotifications();
-    
     const interval = setInterval(fetchNotifications, 2000);
     return () => clearInterval(interval);
-  }, [notifications]); // Dependência atualizada para capturar mudanças se necessário, mas geralmente vazio é ok se usarmos state callback
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [notifications]);
+
+  // Função para desbloquear o áudio no iOS
+  const unlockAudio = () => {
+    if (audioReady) return;
+
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        
+        // Cria um oscilador mudo e toca por 1ms para desbloquear
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        gainNode.gain.value = 0; // Silencioso
+        oscillator.start(0);
+        oscillator.stop(0.001);
+        
+        audioContextRef.current = ctx;
+        setAudioReady(true);
+        toast.success('Sistema de áudio ativado!');
+      }
+    } catch (e) {
+      console.error('Falha ao desbloquear áudio', e);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -53,7 +89,6 @@ export default function NotificationReceiver() {
       if (res.ok) {
         const data: Notification[] = await res.json();
         
-        // Se ainda não carregamos os dados iniciais, apenas populamos e saímos sem tocar som
         if (!hasLoadedInitialData) {
           setNotifications(data);
           if (data.length > 0) {
@@ -63,7 +98,6 @@ export default function NotificationReceiver() {
           return;
         }
 
-        // Lógica para novas notificações APÓS o carregamento inicial
         if (data.length > notifications.length) {
           const newMessages = data.filter(n => !notifications.find(existing => existing.id === n.id));
           const hasExternalAlert = newMessages.some(n => n.source !== 'user');
@@ -81,8 +115,6 @@ export default function NotificationReceiver() {
             lastIdRef.current = data[data.length - 1].id;
           }
         } else if (data.length > 0 && lastIdRef.current !== data[data.length - 1].id) {
-           // Caso haja atualização no último ID, mas o tamanho do array não mudou (ex: edição/remoção se houvesse)
-           // Ou apenas sincronização de estado
            setNotifications(data);
            lastIdRef.current = data[data.length - 1].id;
         }
@@ -93,6 +125,9 @@ export default function NotificationReceiver() {
   };
 
   const requestNotificationPermission = async () => {
+    // Tenta desbloquear o áudio no clique
+    unlockAudio();
+
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         setPermissionGranted(true);
@@ -105,7 +140,6 @@ export default function NotificationReceiver() {
         if (permission === 'granted') {
           setPermissionGranted(true);
           toast.success('Notificações ativadas com sucesso!');
-          // Força um reload das notificações agora que temos permissão
           fetchNotifications(); 
         } else {
           toast.error('Permissão negada. Por favor, ative nas configurações do navegador.');
@@ -136,17 +170,29 @@ export default function NotificationReceiver() {
 
   const playMelodyAlert = () => {
     try {
-      let audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       
+      // Se o contexto não existe ou está suspenso, tenta retomar ou criar um novo
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new AudioContext();
+      }
+      
+      const audioContext = audioContextRef.current;
+
+      if (audioContext.state === 'suspended') {
+        // No iOS, se estiver suspenso, tentamos retomar (geralmente requer interação prévia)
+        audioContext.resume();
+      }
+
       const notes = [
-        { freq: 523.25, start: 0.0, duration: 0.15 },    // C5
-        { freq: 587.33, start: 0.15, duration: 0.15 },   // D5
-        { freq: 659.25, start: 0.30, duration: 0.15 },   // E5
-        { freq: 698.46, start: 0.45, duration: 0.15 },   // F5
-        { freq: 783.99, start: 0.60, duration: 0.15 },   // G5
-        { freq: 880.00, start: 0.75, duration: 0.15 },   // A5
-        { freq: 987.77, start: 0.90, duration: 0.15 },   // B5
-        { freq: 1046.50, start: 1.05, duration: 0.6 },   // C6
+        { freq: 523.25, start: 0.0, duration: 0.15 },
+        { freq: 587.33, start: 0.15, duration: 0.15 },
+        { freq: 659.25, start: 0.30, duration: 0.15 },
+        { freq: 698.46, start: 0.45, duration: 0.15 },
+        { freq: 783.99, start: 0.60, duration: 0.15 },
+        { freq: 880.00, start: 0.75, duration: 0.15 },
+        { freq: 987.77, start: 0.90, duration: 0.15 },
+        { freq: 1046.50, start: 1.05, duration: 0.6 },
       ];
 
       const now = audioContext.currentTime;
@@ -162,7 +208,7 @@ export default function NotificationReceiver() {
         gain.connect(masterGain);
         
         osc.frequency.value = note.freq;
-        osc.type = 'square'; 
+        osc.type = 'square';
         
         gain.gain.setValueAtTime(0, now + note.start);
         gain.gain.linearRampToValueAtTime(1.0, now + note.start + 0.02);
@@ -172,28 +218,25 @@ export default function NotificationReceiver() {
         osc.stop(now + note.start + note.duration + 0.1);
       });
 
-      setTimeout(() => {
-        if (audioContext.state !== 'closed') {
-          audioContext.close();
-        }
-      }, 2500);
-      
     } catch (error) {
       console.error('Melody play failed', error);
     }
   };
 
   const testAlert = () => {
-    playMelodyAlert();
-    if (permissionGranted) {
+    unlockAudio(); // Garante que o áudio esteja desbloqueado antes de testar
+    setTimeout(() => {
+      playMelodyAlert();
+      if (permissionGranted) {
         showEmergencyNotification({
-        id: 0,
-        message: 'Este é um teste do som de alerta!',
-        timestamp: new Date().toISOString(),
-      });
-    } else {
+          id: 0,
+          message: 'Este é um teste do som de alerta!',
+          timestamp: new Date().toISOString(),
+        });
+      } else {
         toast.warning("Ative as notificações primeiro para ver o alerta nativo.");
-    }
+      }
+    }, 100);
   };
 
   const copyUrl = () => {
@@ -241,17 +284,26 @@ export default function NotificationReceiver() {
         </div>
       </div>
       
+      {isIOS && (
+        <div className="bg-orange-100 dark:bg-orange-900/30 border-b border-orange-200 dark:border-orange-800 p-3 max-w-md mx-auto w-full text-center">
+          <div className="flex items-center justify-center gap-2 text-orange-800 dark:text-orange-200 text-sm">
+            <Info size={16} />
+            <p className="font-medium">No iPhone, o som só toca com a tela aberta no Safari.</p>
+          </div>
+        </div>
+      )}
+
       {!permissionGranted && (
         <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-800 p-3 max-w-md mx-auto w-full text-center">
           <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
-            Ative as notificações para receber alertas de emergência.
+            Ative as notificações e o áudio para receber alertas.
           </p>
           <Button 
             onClick={requestNotificationPermission}
             className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold"
           >
             <Bell size={18} className="mr-2" />
-            Permitir Notificações
+            Permitir Notificações e Som
           </Button>
         </div>
       )}
