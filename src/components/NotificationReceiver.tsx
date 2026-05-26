@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { Bell, Volume2, ExternalLink, Copy, Check, Key } from 'lucide-react';
+import { Bell, Volume2, ExternalLink, Copy, Check, Key, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -25,12 +25,13 @@ export default function NotificationReceiver() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setWebhookUrl(`${window.location.origin}/api/webhook/notification`);
+      // Solicitar permissão de notificação ao carregar
+      requestNotificationPermission();
     }
   }, []);
 
   useEffect(() => {
     fetchNotifications();
-    requestNotificationPermission();
     
     const interval = setInterval(fetchNotifications, 2000);
     return () => clearInterval(interval);
@@ -47,12 +48,18 @@ export default function NotificationReceiver() {
         const data: Notification[] = await res.json();
         
         if (data.length > notifications.length) {
-          // Toca alerta apenas para notificações externas (não do usuário)
+          // Toca alerta e notifica apenas para notificações externas (não do usuário)
           const newMessages = data.filter(n => !notifications.find(existing => existing.id === n.id));
           const hasExternalAlert = newMessages.some(n => n.source !== 'user');
           
           if (hasExternalAlert) {
+            // Tocar som
             playMelodyAlert();
+            
+            // Disparar notificação nativa de emergência para cada nova mensagem
+            newMessages.forEach(n => {
+              showEmergencyNotification(n);
+            });
           }
           
           setNotifications(data);
@@ -71,63 +78,97 @@ export default function NotificationReceiver() {
   };
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        toast.success('Notificações do navegador ativadas');
+    if ('Notification' in window && Notification.permission === 'default') {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          toast.success('Notificações ativadas! Você receberá alertas de emergência.');
+        } else {
+          toast.error('Permissão de notificação negada. Ative nas configurações do navegador.');
+        }
+      } catch (error) {
+        console.error('Error requesting notification permission', error);
+      }
+    }
+  };
+
+  const showEmergencyNotification = (notification: Notification) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('🚨 ALERTA DE EMERGÊNCIA 🚨', {
+          body: notification.message,
+          icon: '/icons/icon-192.svg',
+          badge: '/icons/icon-192.svg',
+          tag: notification.id.toString(), // Evita duplicatas na tela de bloqueio
+          requireInteraction: true, // Mantém a notificação na tela até o usuário interagir (Desktop)
+        });
+      } catch (e) {
+        console.error('Failed to show native notification', e);
       }
     }
   };
 
   const playMelodyAlert = () => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Cria contexto de áudio se não existir ou se estiver fechado
+      let audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      // Melodia simples de 3 segundos (Dó-Mi-Sol-Dó agudo)
+      // Melodia urgente e alta (Dó-Ré-Mi-Fá-Sol-Lá-Si-Dó)
       const notes = [
-        { freq: 523.25, start: 0, duration: 0.6 },    // C5
-        { freq: 659.25, start: 0.7, duration: 0.6 },  // E5
-        { freq: 783.99, start: 1.4, duration: 0.6 },  // G5
-        { freq: 1046.50, start: 2.1, duration: 0.9 }, // C6
+        { freq: 523.25, start: 0.0, duration: 0.15 },    // C5
+        { freq: 587.33, start: 0.15, duration: 0.15 },   // D5
+        { freq: 659.25, start: 0.30, duration: 0.15 },   // E5
+        { freq: 698.46, start: 0.45, duration: 0.15 },   // F5
+        { freq: 783.99, start: 0.60, duration: 0.15 },   // G5
+        { freq: 880.00, start: 0.75, duration: 0.15 },   // A5
+        { freq: 987.77, start: 0.90, duration: 0.15 },   // B5
+        { freq: 1046.50, start: 1.05, duration: 0.6 },   // C6 (Longo e alto)
       ];
 
       const now = audioContext.currentTime;
+      const masterGain = audioContext.createGain();
+      masterGain.gain.value = 0.5; // Volume mais alto
+      masterGain.connect(audioContext.destination);
 
       notes.forEach(note => {
         const osc = audioContext.createOscillator();
         const gain = audioContext.createGain();
         
         osc.connect(gain);
-        gain.connect(audioContext.destination);
+        gain.connect(masterGain);
         
         osc.frequency.value = note.freq;
-        osc.type = 'sine';
+        osc.type = 'square'; // Onda quadrada soa mais "alarmante"
         
-        // Envelope suave para evitar cliques
+        // Envelope para ser alto e nítido
         gain.gain.setValueAtTime(0, now + note.start);
-        gain.gain.linearRampToValueAtTime(0.25, now + note.start + 0.05);
+        gain.gain.linearRampToValueAtTime(1.0, now + note.start + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, now + note.start + note.duration);
         
         osc.start(now + note.start);
         osc.stop(now + note.start + note.duration + 0.1);
       });
 
-      // Fecha o contexto após exatamente 3 segundos
+      // Fecha o contexto após o som terminar
       setTimeout(() => {
         if (audioContext.state !== 'closed') {
           audioContext.close();
         }
-      }, 3000);
+      }, 2500);
       
     } catch (error) {
       console.error('Melody play failed', error);
-      toast.error('Erro ao tocar notificação');
     }
   };
 
   const testAlert = () => {
     playMelodyAlert();
-    toast.info('Testando melodia de alerta');
+    showEmergencyNotification({
+      id: 0,
+      message: 'Este é um teste do som de alerta!',
+      timestamp: new Date().toISOString(),
+    });
+    toast.info('Testando melodia de alerta e notificação');
   };
 
   const copyUrl = () => {
@@ -158,16 +199,16 @@ export default function NotificationReceiver() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      <div className="bg-blue-600 dark:bg-blue-800 p-4 pt-12 shadow-md z-10">
+      <div className="bg-red-600 dark:bg-red-800 p-4 pt-12 shadow-md z-10">
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div className="flex items-center gap-3">
-            <Bell className="text-white" size={24} />
+            <AlertTriangle className="text-white" size={28} />
             <h1 className="text-xl font-bold text-white">Central de Alertas</h1>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-blue-700"
+            className="text-white hover:bg-red-700"
             onClick={testAlert}
           >
             <Volume2 size={20} />
@@ -190,11 +231,11 @@ export default function NotificationReceiver() {
               <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
                 notification.source === 'user' 
                   ? 'bg-blue-600 text-white rounded-br-none' 
-                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-200 dark:border-gray-700'
+                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none border-2 border-red-500/50'
               }`}>
                 {notification.title && notification.source !== 'user' && (
-                  <p className={`text-xs font-semibold mb-1 ${
-                    notification.source === 'user' ? 'text-blue-100' : 'text-blue-600 dark:text-blue-400'
+                  <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${
+                    notification.source === 'user' ? 'text-blue-100' : 'text-red-500'
                   }`}>
                     {notification.title}
                   </p>
