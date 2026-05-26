@@ -1,39 +1,72 @@
 export interface CampaignMetric {
   id: string;
-  name: string;
+  campaignName: string;
+  adSetName: string;
+  adName: string;
   spend: number;
   impressions: number;
   clicks: number;
+  messages: number;
+  reach: number;
+  cpm: number;
   ctr: number;
   cpc: number;
-  conversions: number;
-  roas: number;
+  frequency: number;
+  videoView25: number;
+  videoView75: number;
 }
 
 export interface DailyMetric {
   date: string;
   spend: number;
+  messages: number;
   impressions: number;
   clicks: number;
-  conversions: number;
+  reach: number;
 }
 
-export const mockDailyMetrics: DailyMetric[] = Array.from({ length: 30 }, (_, i) => {
+export const mockDailyMetrics: DailyMetric[] = Array.from({ length: 25 }, (_, i) => {
   const date = new Date();
-  date.setDate(date.getDate() - (29 - i));
+  date.setDate(date.getDate() - (24 - i));
   return {
-    date: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    spend: Math.floor(Math.random() * 500) + 100,
-    impressions: Math.floor(Math.random() * 10000) + 2000,
-    clicks: Math.floor(Math.random() * 500) + 50,
-    conversions: Math.floor(Math.random() * 20) + 2,
+    date: date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+    spend: Math.floor(Math.random() * 100) + 20,
+    messages: Math.floor(Math.random() * 20) + 1,
+    impressions: Math.floor(Math.random() * 20000) + 5000,
+    clicks: Math.floor(Math.random() * 100) + 10,
+    reach: Math.floor(Math.random() * 15000) + 4000,
   };
 });
 
 export const mockCampaigns: CampaignMetric[] = [
-  { id: '1', name: 'Campanha de Vendas - Verão', spend: 15000, impressions: 450000, clicks: 12000, ctr: 2.67, cpc: 1.25, conversions: 450, roas: 4.2 },
-  { id: '2', name: 'Retargeting Carrinho', spend: 8500, impressions: 210000, clicks: 9500, ctr: 4.52, cpc: 0.89, conversions: 320, roas: 6.8 },
-  { id: '3', name: 'Lançamento Produto X', spend: 22000, impressions: 680000, clicks: 18000, ctr: 2.65, cpc: 1.22, conversions: 610, roas: 3.5 },
-  { id: '4', name: 'Tráfego para Blog', spend: 3200, impressions: 150000, clicks: 7200, ctr: 4.80, cpc: 0.44, conversions: 85, roas: 1.8 },
-  { id: '5', name: 'Lead Gen - Webinar', spend: 5600, impressions: 280000, clicks: 11200, ctr: 4.00, cpc: 0.50, conversions: 210, roas: 2.9 },
+  { id: '1', campaignName: '[ENGAJA][CATANDUVA][VÍDEON...', adSetName: '[ENGAJA][CATANDUVA][VÍDEON...', adName: '[ENGAJA][CATANDUVA][VÍDEON...', spend: 590.18, impressions: 120000, clicks: 277, messages: 78, reach: 80000, cpm: 4.08, ctr: 0.23, cpc: 2.13, frequency: 1.5, videoView25: 8523, videoView75: 1827 },
+  { id: '2', campaignName: 'Camp - 2 feira mulher omini', adSetName: 'Conj 2 feira mulher omini', adName: '2 feira mulher omini', spend: 184.76, impressions: 80000, clicks: 262, messages: 38, reach: 40000, cpm: 2.30, ctr: 0.32, cpc: 0.70, frequency: 2.0, videoView25: 4000, videoView75: 900 },
+  { id: '3', campaignName: 'Camp - 2 feira mulher omini 2...', adSetName: 'Conj 2 feira mulher omini 23 /...', adName: '2 feira mulher omini 23 / 05', spend: 166.64, impressions: 60000, clicks: 205, messages: 29, reach: 30000, cpm: 2.77, ctr: 0.34, cpc: 0.81, frequency: 2.0, videoView25: 3000, videoView75: 700 },
+  { id: '4', campaignName: '[RECONHE][CATANDUVA][FEIRÃ...', adSetName: '[ENGAJA][CATANDUVA][FEIRÃO]...', adName: '[ENGAJA][CATANDUVA][FEIRÃO]...', spend: 348.75, impressions: 56128, clicks: 126, messages: 0, reach: 21074, cpm: 6.21, ctr: 0.22, cpc: 2.76, frequency: 2.66, videoView25: 2000, videoView75: 500 },
 ];
+
+export const totalMetrics = {
+  spend: 1290.33,
+  messages: 145,
+  clicks: 870,
+  reach: 171074,
+  impressions: 316128,
+  spendChange: -9.8,
+  messagesChange: -23.3,
+  clicksChange: -16.7,
+  reachChange: 28.9,
+  impressionsChange: 2.0,
+  funnelImpressions: 316000,
+  funnelReach: 171000,
+  funnelClicks: 280,
+  funnelMessages: 145,
+  funnelVideo25: 8523,
+  funnelVideo75: 1827,
+  ctr: 0.09,
+  messageRate: 51.79,
+  vvr: 8.54,
+  frequency: 1.85,
+  cpm: 4.08,
+  costPerMessage: 8.90,
+  cpc: 4.61,
+};
