@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useState } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const html2canvas: (element: HTMLElement, options?: any) => Promise<HTMLCanvasElement>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const jspdf: any;
 
 export function usePdfDownload() {
   const [generating, setGenerating] = useState(false);
@@ -16,7 +19,31 @@ export function usePdfDownload() {
         throw new Error('Elemento não encontrado');
       }
 
-      const canvas = await html2canvas(element, {
+      // Dynamically load scripts if not already loaded
+      if (!window.html2canvas) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+          document.head.appendChild(script);
+        });
+      }
+
+      if (!window.jspdf) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Falha ao carregar jsPDF'));
+          document.head.appendChild(script);
+        });
+      }
+
+      const html2canvasFn = window.html2canvas;
+      const { jsPDF } = window.jspdf;
+
+      const canvas = await html2canvasFn(element, {
         scale: 2,
         useCORS: true,
         logging: false,
@@ -24,8 +51,8 @@ export function usePdfDownload() {
         windowWidth: 1400,
       });
 
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
+      const imgWidth = 210;
+      const pageHeight = 297;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -34,11 +61,9 @@ export function usePdfDownload() {
 
       const imgData = canvas.toDataURL('image/png');
 
-      // Adiciona a primeira página
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
-      // Adiciona páginas adicionais se necessário
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();

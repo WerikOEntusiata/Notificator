@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (!db.data) {
-      db.data = { examples: [], notifications: [] };
+      db.data = { examples: [], notifications: [], metrics: { campaigns: [], daily: [], totals: {} }, clients: [] };
     }
     
     db.data.notifications.push(newNotification);
