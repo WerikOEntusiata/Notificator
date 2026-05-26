@@ -69,7 +69,6 @@ async function fetchMetaAdsData(period: string = '30d') {
   const baseFields = 'spend,impressions,reach,clicks,frequency,actions,results,cpm,cpc,ctr';
 
   try {
-    // 1. Buscar Totais
     const totalsRes = await fetch(
       `${baseUrl}?access_token=${token}&level=account&fields=${baseFields}&time_range=${encodeURIComponent(timeRange)}`
     );
@@ -108,7 +107,6 @@ async function fetchMetaAdsData(period: string = '30d') {
       funnelVideo75: 0,
     };
 
-    // 2. Buscar Campanhas
     const campRes = await fetch(
       `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
     );
@@ -141,7 +139,6 @@ async function fetchMetaAdsData(period: string = '30d') {
       });
     }
 
-    // 3. Buscar Dados Diários
     const dailyRes = await fetch(
       `${baseUrl}?access_token=${token}&level=account&fields=spend,impressions,reach,clicks,actions,results&time_range=${encodeURIComponent(timeRange)}&time_increment=1`
     );
@@ -176,46 +173,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '30d';
-    const source = searchParams.get('source') || 'auto';
 
     const db = await getDb();
-
-    // 1. Modo Manual: Retorna estritamente o que está salvo no banco
-    if (source === 'manual') {
-      const dbMetrics = db.data?.metrics;
-      if (dbMetrics && dbMetrics.campaigns.length > 0) {
-        return NextResponse.json({ ...dbMetrics, source: 'manual' });
-      }
-      return NextResponse.json({ 
-        campaigns: [], daily: [], totals: {}, 
-        status: 'no-manual-data', 
-        source: 'manual' 
-      });
-    }
-
-    // 2. Modo Meta: Força busca na API, ignora cache do banco para evitar dados velhos
-    if (source === 'meta') {
-      const metaResult = await fetchMetaAdsData(period);
-      if (metaResult.status === 'live-meta') {
-        // Salva os dados frescos no banco
-        db.data!.metrics = {
-          campaigns: metaResult.campaigns || [],
-          daily: metaResult.daily || [],
-          totals: metaResult.totals || {}
-        };
-        await db.write();
-        return NextResponse.json({ ...metaResult, source: 'meta' });
-      }
-      return NextResponse.json({ 
-        campaigns: [], daily: [], totals: {}, 
-        status: metaResult.status, 
-        error: metaResult.error,
-        source: 'meta' 
-      });
-    }
-
-    // 3. Modo Automático (Auto): Tenta API -> Se falhar usa DB -> Se não tem DB usa Vazio
     const metaResult = await fetchMetaAdsData(period);
+
     if (metaResult.status === 'live-meta') {
       db.data!.metrics = {
         campaigns: metaResult.campaigns || [],
@@ -226,44 +187,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...metaResult, source: 'meta' });
     }
 
-    // Fallback para dados manuais salvos
-    if (db.data?.metrics && db.data.metrics.campaigns.length > 0) {
-      return NextResponse.json({ ...db.data.metrics, source: 'manual' });
-    }
-
-    // Retorno Vazio
-    return NextResponse.json({
-      campaigns: [],
-      daily: [],
-      totals: {},
-      status: 'empty',
-      source: 'empty'
+    return NextResponse.json({ 
+      campaigns: [], daily: [], totals: {}, 
+      status: metaResult.status, 
+      error: metaResult.error,
+      source: 'meta' 
     });
   } catch (error) {
     console.error('Erro geral ao buscar métricas:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const db = await getDb();
-
-    db.data!.metrics = {
-      campaigns: body.campaigns || [],
-      daily: body.daily || [],
-      totals: body.totals || {}
-    };
-
-    await db.write();
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Dados manuais salvos com sucesso!' 
-    }, { status: 201 });
-  } catch (error) {
-    console.error('Erro ao salvar métricas:', error);
-    return NextResponse.json({ error: 'Erro ao salvar dados' }, { status: 500 });
   }
 }

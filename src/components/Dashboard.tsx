@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import SparklineChart from '@/components/ui/SparklineChart';
 import FunnelChart from '@/components/FunnelChart';
-import { Settings, Download, Calendar, Database, Cloud, Code, AlertCircle, RefreshCw } from 'lucide-react';
+import { Settings, Download, Calendar, Cloud, AlertCircle, RefreshCw } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,15 +15,14 @@ const formatNumber = (val: number) => new Intl.NumberFormat('pt-BR').format(val)
 
 export default function Dashboard() {
   const [period, setPeriod] = useState('30d');
-  const [source, setSource] = useState('auto');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMetrics = useCallback(async (p: string, s: string) => {
+  const fetchMetrics = useCallback(async (p: string) => {
     setLoading(true);
     setData(null); 
     try {
-      const res = await fetch(`/api/meta/metrics?period=${p}&source=${s}`);
+      const res = await fetch(`/api/meta/metrics?period=${p}`);
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -34,13 +33,13 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchMetrics(period, source);
-  }, [period, source, fetchMetrics]);
+    fetchMetrics(period);
+  }, [period, fetchMetrics]);
 
   const campaigns = data?.campaigns || [];
   const daily = data?.daily || [];
   const totals = data?.totals || {};
-  const currentSource = data?.source || source;
+  const currentSource = data?.source || 'meta';
 
   const sparklineDataSpend = daily.map((d: any) => d.spend || 0);
   const sparklineDataMessages = daily.map((d: any) => d.messages || 0);
@@ -62,11 +61,7 @@ export default function Dashboard() {
   const COLORS = ['#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE'];
 
   const getSourceLabel = () => {
-    switch(currentSource) {
-      case 'manual': return 'Dados Manuais';
-      case 'meta': return 'Integração Meta Ads';
-      default: return 'Simulação (Mock)';
-    }
+    return 'Integração Meta Ads';
   };
 
   if (loading) {
@@ -98,39 +93,17 @@ export default function Dashboard() {
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
-                  onClick={() => fetchMetrics(period, source)}
+                  onClick={() => fetchMetrics(period)}
                   disabled={loading}
                 >
                   <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                 </Button>
              </div>
              
-             <Select value={source} onValueChange={setSource}>
-               <SelectTrigger className="w-[200px] h-8 bg-[#242526] border-gray-700 text-sm text-gray-300">
-                 {currentSource === 'meta' ? <Cloud size={14} className="mr-2 text-blue-400" /> : currentSource === 'manual' ? <Code size={14} className="mr-2 text-green-400" /> : <Database size={14} className="mr-2 text-gray-400" />}
-                 <SelectValue placeholder="Fonte de Dados" />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="auto">
-                   <div className="flex items-center gap-2">
-                     <Database size={14} className="text-gray-400" />
-                     <span>Automático (Fallback)</span>
-                   </div>
-                 </SelectItem>
-                 <SelectItem value="meta">
-                   <div className="flex items-center gap-2">
-                     <Cloud size={14} className="text-blue-400" />
-                     <span>Integração Meta Ads</span>
-                   </div>
-                 </SelectItem>
-                 <SelectItem value="manual">
-                   <div className="flex items-center gap-2">
-                     <Code size={14} className="text-green-400" />
-                     <span>Dados Manuais (POST)</span>
-                   </div>
-                 </SelectItem>
-               </SelectContent>
-             </Select>
+             <div className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#242526] border border-gray-700 rounded text-sm text-gray-300">
+               <Cloud size={14} className="text-blue-400" />
+               <span>Integração Meta Ads</span>
+             </div>
 
              <Select value={period} onValueChange={setPeriod}>
                <SelectTrigger className="w-[160px] h-8 bg-[#242526] border-gray-700 text-sm text-gray-300">
@@ -145,19 +118,12 @@ export default function Dashboard() {
              </Select>
           </div>
         </div>
-        
-        <div className="max-w-[1600px] mx-auto w-full mt-2">
-          <div className="inline-flex items-center gap-1 px-2 py-1 bg-[#242526] rounded text-xs text-gray-400">
-            <div className={`w-2 h-2 rounded-full ${currentSource === 'meta' ? 'bg-blue-400' : currentSource === 'manual' ? 'bg-green-400' : 'bg-gray-500'}`}></div>
-            Fonte: {getSourceLabel()}
-          </div>
-        </div>
       </header>
 
       <main className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
         {data?.status === 'config-required' && (
           <div className="bg-blue-900/30 border border-blue-800 p-4 rounded text-sm text-blue-200">
-            <strong>Configuração necessária:</strong> Adicione as variáveis `META_ADS_ACCESS_TOKEN` e `META_ADS_ACCOUNT_ID` no seu ambiente para ativar a integração automática.
+            <strong>Configuração necessária:</strong> Adicione as variáveis `META_ADS_ACCESS_TOKEN` e `META_ADS_ACCOUNT_ID` no seu ambiente para ativar a integração.
           </div>
         )}
         
@@ -298,13 +264,6 @@ export default function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-            <div className="p-3 flex justify-between items-center text-xs text-gray-500 border-t border-gray-800">
-              <span>1 - {campaigns.length} / {campaigns.length}</span>
-              <div className="flex gap-2">
-                <button className="hover:text-white">{'<'}</button>
-                <button className="hover:text-white">{'>'}</button>
-              </div>
             </div>
           </CardContent>
         </Card>
