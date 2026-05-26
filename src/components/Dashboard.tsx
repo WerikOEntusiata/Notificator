@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import SparklineChart from '@/components/ui/SparklineChart';
 import FunnelChart from '@/components/FunnelChart';
-import { Wallet, MousePointer, TrendingUp, Eye, MessageSquare, BarChart3, Users, ChevronDown, Download, Settings, Calendar } from 'lucide-react';
+import { Settings, Download, Calendar, Database, Cloud, Code } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Button } from '@/components/ui/button';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -15,12 +15,13 @@ const formatNumber = (val: number) => new Intl.NumberFormat('pt-BR').format(val)
 
 export default function Dashboard() {
   const [period, setPeriod] = useState('30d');
+  const [source, setSource] = useState('auto'); // 'auto', 'manual', 'meta'
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/meta/metrics?period=${period}`)
+    fetch(`/api/meta/metrics?period=${period}&source=${source}`)
       .then(res => res.json())
       .then(json => {
         setData(json);
@@ -30,7 +31,7 @@ export default function Dashboard() {
         console.error('Failed to fetch metrics', err);
         setLoading(false);
       });
-  }, [period]);
+  }, [period, source]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen bg-[#0A0B0D] text-white">Carregando dados...</div>;
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const campaigns = data?.campaigns || [];
   const daily = data?.daily || [];
   const totals = data?.totals || {};
+  const currentSource = data?.source || source;
 
   const sparklineDataSpend = daily.map((d: any) => d.spend || 0);
   const sparklineDataMessages = daily.map((d: any) => d.messages || 0);
@@ -59,9 +61,16 @@ export default function Dashboard() {
   
   const COLORS = ['#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE'];
 
+  const getSourceLabel = () => {
+    switch(currentSource) {
+      case 'manual': return 'Dados Manuais';
+      case 'meta': return 'Integração Meta Ads';
+      default: return 'Simulação (Mock)';
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#0A0B0D] text-white font-sans">
-      {/* Header */}
       <header className="border-b border-gray-800 bg-[#18191A] p-4">
         <div className="max-w-[1600px] mx-auto w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -83,21 +92,37 @@ export default function Dashboard() {
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"><Download size={16} /></Button>
              </div>
              
-             <Select defaultValue="campaigns">
-               <SelectTrigger className="w-[140px] h-8 bg-[#242526] border-gray-700 text-sm text-gray-300">
-                 <BarChart3 size={14} className="mr-2" />
-                 <SelectValue placeholder="Campanhas" />
+             <Select value={source} onValueChange={setSource}>
+               <SelectTrigger className="w-[200px] h-8 bg-[#242526] border-gray-700 text-sm text-gray-300">
+                 {currentSource === 'meta' ? <Cloud size={14} className="mr-2 text-blue-400" /> : currentSource === 'manual' ? <Code size={14} className="mr-2 text-green-400" /> : <Database size={14} className="mr-2 text-gray-400" />}
+                 <SelectValue placeholder="Fonte de Dados" />
                </SelectTrigger>
                <SelectContent>
-                 <SelectItem value="campaigns">Campanhas</SelectItem>
-                 <SelectItem value="ads">Anúncios</SelectItem>
+                 <SelectItem value="auto">
+                   <div className="flex items-center gap-2">
+                     <Database size={14} className="text-gray-400" />
+                     <span>Automático (Fallback)</span>
+                   </div>
+                 </SelectItem>
+                 <SelectItem value="meta">
+                   <div className="flex items-center gap-2">
+                     <Cloud size={14} className="text-blue-400" />
+                     <span>Integração Meta Ads</span>
+                   </div>
+                 </SelectItem>
+                 <SelectItem value="manual">
+                   <div className="flex items-center gap-2">
+                     <Code size={14} className="text-green-400" />
+                     <span>Dados Manuais (POST)</span>
+                   </div>
+                 </SelectItem>
                </SelectContent>
              </Select>
 
              <Select value={period} onValueChange={setPeriod}>
-               <SelectTrigger className="w-[200px] h-8 bg-[#242526] border-gray-700 text-sm text-gray-300">
+               <SelectTrigger className="w-[160px] h-8 bg-[#242526] border-gray-700 text-sm text-gray-300">
                  <Calendar size={14} className="mr-2" />
-                 <SelectValue placeholder="Selecionar período" />
+                 <SelectValue placeholder="Período" />
                </SelectTrigger>
                <SelectContent>
                  <SelectItem value="7d">Últimos 7 dias</SelectItem>
@@ -107,10 +132,22 @@ export default function Dashboard() {
              </Select>
           </div>
         </div>
+        
+        <div className="max-w-[1600px] mx-auto w-full mt-2">
+          <div className="inline-flex items-center gap-1 px-2 py-1 bg-[#242526] rounded text-xs text-gray-400">
+            <div className={`w-2 h-2 rounded-full ${currentSource === 'meta' ? 'bg-blue-400' : currentSource === 'manual' ? 'bg-green-400' : 'bg-gray-500'}`}></div>
+            Fonte: {getSourceLabel()}
+          </div>
+        </div>
       </header>
 
       <main className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
-        {/* Top Metrics Cards */}
+        {data?.status === 'config-required' && (
+          <div className="bg-blue-900/30 border border-blue-800 p-4 rounded text-sm text-blue-200">
+            <strong>Configuração necessária:</strong> Adicione as variáveis `META_ADS_ACCESS_TOKEN` e `META_ADS_ACCOUNT_ID` no seu Docker para ativar a integração automática.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <MetricCard title="Investimento" value={totals.spend ? formatCurrency(totals.spend) : 'R$ 0,00'} change={totals.spendChange || 0} data={sparklineDataSpend} color="#EF4444" />
           <MetricCard title="Mensagens Iniciadas" value={totals.messages?.toString() || '0'} change={totals.messagesChange || 0} data={sparklineDataMessages} color="#10B981" />
@@ -119,10 +156,7 @@ export default function Dashboard() {
           <MetricCard title="Impressões" value={totals.impressions ? formatNumber(totals.impressions) : '0'} change={totals.impressionsChange || 0} data={sparklineDataImpressions} color="#F59E0B" />
         </div>
 
-        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          
-          {/* Left: Funnel */}
           <div className="lg:col-span-3">
             <FunnelChart 
               mainSteps={[
@@ -145,7 +179,6 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Middle: Charts & Costs */}
           <div className="lg:col-span-6 flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
                <CostCard title="Custo por Mensagem" value={totals.costPerMessage ? formatCurrency(totals.costPerMessage) : 'R$ 0,00'} change={117.6} progress={65} progressColor="bg-green-500" target="R$ 7,57" />
@@ -178,25 +211,13 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Right: Donut Chart */}
           <div className="lg:col-span-3">
             <Card className="h-full bg-[#18191A] border-gray-800 text-white">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-center text-sm">Melhores Anúncios (Mensagens)</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center h-[calc(100%-60px)]">
+              <CardContent className="flex flex-col items-center justify-center h-full">
                 <div className="w-full h-48 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value">
                         {pieData.map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
@@ -210,7 +231,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="w-full mt-2 space-y-1">
+                <div className="w-full mt-4 space-y-1">
                   {pieData.map((entry: any, index: number) => (
                     <div key={index} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
@@ -226,7 +247,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Bottom Table */}
         <Card className="bg-[#18191A] border-gray-800 text-white">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -305,27 +325,5 @@ function CostCard({ title, value, change, progress, progressColor, target }: { t
         <span className="absolute right-2 top-1 text-[10px] text-gray-400">{target}</span>
       </div>
     </Card>
-  );
-}
-
-function CalendarIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M8 2v4" />
-      <path d="M16 2v4" />
-      <rect width="18" height="18" x="3" y="4" rx="2" />
-      <path d="M3 10h18" />
-    </svg>
   );
 }

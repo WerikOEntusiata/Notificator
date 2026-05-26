@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/database';
 import { mockCampaigns, mockDailyMetrics, totalMetrics } from '@/lib/mock-meta-data';
 
-// Função para calcular o range de datas para a Meta API
 function getDateRangeForMeta(period: string) {
   const now = new Date();
   let since = new Date();
@@ -25,32 +24,29 @@ function getDateRangeForMeta(period: string) {
   return `{"since":"${formatDate(since)}","until":"${formatDate(now)}"}`;
 }
 
-// Função auxiliar para buscar dados da Meta Ads API
 async function fetchMetaAdsData(period: string = '30d') {
   const token = process.env.META_ADS_ACCESS_TOKEN;
   const accountId = process.env.META_ADS_ACCOUNT_ID;
 
-  // Se as variáveis não estiverem configuradas, retorna null para usar o fallback (mock)
-  if (!token || !accountId) return null;
+  if (!token || !accountId) {
+    return { error: 'Variáveis de ambiente não configuradas', status: 'config-required' };
+  }
 
   const formattedId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
   const baseUrl = `https://graph.facebook.com/v19.0/${formattedId}/insights`;
   const timeRange = getDateRangeForMeta(period);
 
   try {
-    // 1. Buscar Totais (Nível da Conta)
     const totalsRes = await fetch(
       `${baseUrl}?access_token=${token}&level=account&fields=spend,impressions,reach,clicks,frequency,actions,cpm,cpc,ctr&time_range=${encodeURIComponent(timeRange)}`
     );
     const totalsJson = await totalsRes.json();
 
     if (!totalsJson.data || totalsJson.data.length === 0) {
-      return null; 
+      return { error: 'Nenhum dado encontrado na Meta', status: 'no-data' }; 
     }
 
     const t = totalsJson.data[0];
-    
-    // A Meta retorna as mensagens dentro do array 'actions'
     const msgs = t.actions?.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started')?.value || 0;
 
     const finalTotals = {
@@ -67,7 +63,6 @@ async function fetchMetaAdsData(period: string = '30d') {
       spendChange: 0, messagesChange: 0, clicksChange: 0, reachChange: 0, impressionsChange: 0,
     };
 
-    // 2. Buscar Campanhas
     const campRes = await fetch(
       `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_name,spend,impressions,reach,clicks,actions&time_range=${encodeURIComponent(timeRange)}&limit=50`
     );
@@ -108,7 +103,7 @@ async function fetchMetaAdsData(period: string = '30d') {
 
   } catch (error) {
     console.error('Erro ao conectar com Meta Ads:', error);
-    return null;
+    return { error: 'Falha na conexão com Meta Ads', status: 'error' };
   }
 }
 
@@ -116,32 +111,64 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '30d';
+    const source = searchParams.get('source') || 'auto'; // 'auto', 'manual', 'meta'
 
     const db = await getDb();
 
-    // 1. Se houver dados enviados manualmente (via POST), eles têm prioridade
-    if (db.data?.metrics && db.data.metrics.campaigns.length > 0) {
-      return NextResponse.json(db.data.metrics);
+    // Se a fonte for manual, ignora a API da Meta
+    if (source === 'manual') {
+      if (db.data?.metrics && db.data.metrics.campaigns.length > 0) {
+        return NextResponse.json({ ...db.data.metrics, source: 'manual' });
+      }
+      return NextResponse.json({ 
+        campaigns: [], daily: [], totals: {}, 
+        status: 'no-manual-data', 
+        source: 'manual' 
+      });
     }
 
-    // 2. Tentar buscar da API da Meta (se variáveis de ambiente existirem)
+    // Se a fonte for meta, força a busca na API
+    if (source === 'meta') {
+      const metaResult = await fetchMetaAdsData(period);
+      if (metaResult.status === 'live-meta') {
+        db.data.metrics = {
+          campaigns: metaResult.campaigns,
+          daily: metaResult.daily,
+          totals: metaResult.totals
+        };
+        await db.write();
+        return NextResponse.json({ ...metaResult, source: 'meta' });
+      }
+      return NextResponse.json({ 
+        campaigns: [], daily: [], totals: {}, 
+        status: metaResult.status, 
+        error: metaResult.error,
+        source: 'meta' 
+      });
+    }
+
+    // Modo AUTO: Mantém a lógica de fallback original
+    if (db.data?.metrics && db.data.metrics.campaigns.length > 0) {
+      return NextResponse.json({ ...db.data.metrics, source: 'manual' });
+    }
+
     const metaResult = await fetchMetaAdsData(period);
-    if (metaResult) {
+    if (metaResult.status === 'live-meta') {
       db.data.metrics = {
         campaigns: metaResult.campaigns,
         daily: metaResult.daily,
         totals: metaResult.totals
       };
       await db.write();
-      return NextResponse.json(metaResult);
+      return NextResponse.json({ ...metaResult, source: 'meta' });
     }
 
-    // 3. Fallback para dados Mockados (Simulação) se nada mais funcionar
     return NextResponse.json({
       campaigns: mockCampaigns,
       daily: mockDailyMetrics,
       totals: totalMetrics,
-      status: 'mock'
+      status: 'mock',
+      source: 'mock'
     });
   } catch (error) {
     console.error('Erro geral ao buscar métricas:', error);
@@ -164,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Dados do dashboard atualizados com sucesso!' 
+      message: 'Dados manuais salvos com sucesso!' 
     }, { status: 201 });
   } catch (error) {
     console.error('Erro ao salvar métricas:', error);
