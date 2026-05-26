@@ -12,12 +12,13 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_DIR=/app/data
-      - API_SECRET_KEY=sua_chave_aqui
-      # Novas variáveis para integração com Meta Ads
+      # Chave para proteger o recebimento de notificações via Webhook
+      - API_SECRET_KEY=sua_chave_secreta_aqui
+      # Configurações para integração com Meta Ads (Dashboard)
       - META_ADS_ACCESS_TOKEN=sua_chave_aqui
       - META_ADS_ACCOUNT_ID=sua_conta_aqui
     labels:
-      - "com.casaos.description=Central de Notificações e Alertas"
+      - "com.casaos.description=Central de Notificações e Dashboard Meta Ads"
       - "com.casaos.icon=https://cdn-icons-png.flaticon.com/512/3238/3238468.png"
       - "com.casaos.category=Utilities"
       - "com.casaos.port=3000"
