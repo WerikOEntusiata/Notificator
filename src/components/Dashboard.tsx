@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import SparklineChart from '@/components/ui/SparklineChart';
 import FunnelChart from '@/components/FunnelChart';
-import { Settings, Download, Calendar, Database, Cloud, Code, AlertCircle } from 'lucide-react';
+import { Settings, Download, Calendar, Database, Cloud, Code, AlertCircle, RefreshCw } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,21 +19,24 @@ export default function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchMetrics = useCallback(async (p: string, s: string) => {
     setLoading(true);
-    fetch(`/api/meta/metrics?period=${period}&source=${source}`)
-      .then(res => res.json())
-      .then(json => {
-        setData(json);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch metrics', err);
-        setLoading(false);
-      });
-  }, [period, source]);
+    try {
+      const res = await fetch(`/api/meta/metrics?period=${p}&source=${s}`);
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      console.error('Failed to fetch metrics', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  if (loading) {
+  useEffect(() => {
+    fetchMetrics(period, source);
+  }, [period, source, fetchMetrics]);
+
+  if (loading && !data) {
     return <div className="flex items-center justify-center h-screen bg-[#0A0B0D] text-white">Carregando dados...</div>;
   }
 
@@ -90,6 +93,15 @@ export default function Dashboard() {
              <div className="flex gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"><Settings size={16} /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"><Download size={16} /></Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+                  onClick={() => fetchMetrics(period, source)}
+                  disabled={loading}
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                </Button>
              </div>
              
              <Select value={source} onValueChange={setSource}>
@@ -231,7 +243,7 @@ export default function Dashboard() {
                     <PieChart>
                       <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value">
                         {pieData.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={COLORS[index] % COLORS.length} />
                         ))}
                       </Pie>
                       <Tooltip contentStyle={{backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff'}} />
