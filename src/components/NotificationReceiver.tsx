@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Bell, Volume2, ExternalLink, Copy, Check, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -18,13 +18,14 @@ export default function NotificationReceiver() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<number | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // Fix Hydration: Initialize with placeholder and update in useEffect
+  const [webhookUrl, setWebhookUrl] = useState('...');
 
-  // Detecta a URL base automaticamente
-  const webhookUrl = useMemo(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/api/webhook/notification`;
+      setWebhookUrl(`${window.location.origin}/api/webhook/notification`);
     }
-    return '...';
   }, []);
 
   useEffect(() => {
