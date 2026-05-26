@@ -24,6 +24,25 @@ function getDateRangeForMeta(period: string) {
   return `{"since":"${formatDate(since)}","until":"${formatDate(now)}"}`;
 }
 
+// Função robusta para extrair mensagens da API da Meta
+function extractMessages(actions: any[] | undefined): number {
+  if (!actions || !Array.isArray(actions)) return 0;
+  let count = 0;
+  actions.forEach(a => {
+    const type = a.action_type || '';
+    // Aceita variações comuns do tipo de ação para mensagens
+    if (
+      type === 'onsite_conversion.messaging_conversation_started' ||
+      type === 'messaging_conversation_started' ||
+      type.includes('message') ||
+      type.includes('messaging')
+    ) {
+      count += parseInt(a.value || '0');
+    }
+  });
+  return count;
+}
+
 async function fetchMetaAdsData(period: string = '30d') {
   const token = process.env.META_ADS_ACCESS_TOKEN;
   const accountId = process.env.META_ADS_ACCOUNT_ID;
@@ -37,6 +56,7 @@ async function fetchMetaAdsData(period: string = '30d') {
   const timeRange = getDateRangeForMeta(period);
 
   try {
+    // 1. Buscar Totais (Nível da Conta)
     const totalsRes = await fetch(
       `${baseUrl}?access_token=${token}&level=account&fields=spend,impressions,reach,clicks,frequency,actions,cpm,cpc,ctr&time_range=${encodeURIComponent(timeRange)}`
     );
@@ -47,7 +67,7 @@ async function fetchMetaAdsData(period: string = '30d') {
     }
 
     const t = totalsJson.data[0];
-    const msgs = t.actions?.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started')?.value || 0;
+    const msgs = extractMessages(t.actions);
 
     const finalTotals = {
       ...totalMetrics,
@@ -55,7 +75,7 @@ async function fetchMetaAdsData(period: string = '30d') {
       impressions: parseInt(t.impressions || 0),
       reach: parseInt(t.reach || 0),
       clicks: parseInt(t.clicks || 0),
-      messages: parseInt(msgs),
+      messages: msgs,
       frequency: parseFloat(t.frequency || 0),
       cpm: parseFloat(t.cpm || 0),
       cpc: parseFloat(t.cpc || 0),
@@ -63,6 +83,7 @@ async function fetchMetaAdsData(period: string = '30d') {
       spendChange: 0, messagesChange: 0, clicksChange: 0, reachChange: 0, impressionsChange: 0,
     };
 
+    // 2. Buscar Campanhas
     const campRes = await fetch(
       `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_name,spend,impressions,reach,clicks,actions&time_range=${encodeURIComponent(timeRange)}&limit=50`
     );
@@ -71,7 +92,7 @@ async function fetchMetaAdsData(period: string = '30d') {
     let finalCampaigns: any[] = [];
     if (campJson.data && campJson.data.length > 0) {
       finalCampaigns = campJson.data.map((c: any, i: number) => {
-         const campMsgs = c.actions?.find((a: any) => a.action_type === 'onsite_conversion.messaging_conversation_started')?.value || 0;
+         const campMsgs = extractMessages(c.actions);
          return {
           id: `meta-${i}`,
           campaignName: c.campaign_name,
@@ -81,7 +102,7 @@ async function fetchMetaAdsData(period: string = '30d') {
           impressions: parseInt(c.impressions || 0),
           clicks: parseInt(c.clicks || 0),
           reach: parseInt(c.reach || 0),
-          messages: parseInt(campMsgs),
+          messages: campMsgs,
           cpm: parseFloat(c.cpm || 0),
           ctr: parseFloat(c.ctr || 0),
           cpc: parseFloat(c.cpc || 0),
@@ -111,11 +132,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '30d';
-    const source = searchParams.get('source') || 'auto'; // 'auto', 'manual', 'meta'
+    const source = searchParams.get('source') || 'auto';
 
     const db = await getDb();
 
-    // Se a fonte for manual, ignora a API da Meta
     if (source === 'manual') {
       if (db.data?.metrics && db.data.metrics.campaigns.length > 0) {
         return NextResponse.json({ ...db.data.metrics, source: 'manual' });
@@ -127,7 +147,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Se a fonte for meta, força a busca na API
     if (source === 'meta') {
       const metaResult = await fetchMetaAdsData(period);
       if (metaResult.status === 'live-meta') {
@@ -147,7 +166,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Modo AUTO: Mantém a lógica de fallback original
     if (db.data?.metrics && db.data.metrics.campaigns.length > 0) {
       return NextResponse.json({ ...db.data.metrics, source: 'manual' });
     }
