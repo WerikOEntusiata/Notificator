@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { mockCampaigns, mockDailyMetrics, totalMetrics, DailyMetric } from '@/lib/mock-meta-data';
 import SparklineChart from '@/components/ui/SparklineChart';
 import FunnelChart from '@/components/FunnelChart';
 import { Wallet, MousePointer, TrendingUp, Eye, MessageSquare, BarChart3, Users, ChevronDown, Download, Settings } from 'lucide-react';
@@ -14,27 +13,50 @@ import { Button } from '@/components/ui/button';
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 const formatNumber = (val: number) => new Intl.NumberFormat('pt-BR').format(val);
 
-// Dados simulados para os sparklines (gerados aleatoriamente para visual)
-const sparklineDataSpend = [40, 35, 50, 45, 30, 60, 55, 40, 45, 30];
-const sparklineDataMessages = [10, 15, 12, 8, 14, 18, 16, 12, 10, 8];
-const sparklineDataClicks = [20, 25, 18, 22, 28, 30, 25, 20, 15, 12];
-const sparklineDataReach = [50, 60, 55, 70, 80, 75, 90, 85, 95, 100];
-const sparklineDataImpressions = [40, 42, 45, 48, 50, 52, 55, 58, 60, 62];
-
 export default function Dashboard() {
   const [period, setPeriod] = useState('25d');
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/meta/metrics')
+      .then(res => res.json())
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch metrics', err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen bg-[#0A0B0D] text-white">Carregando dashboard...</div>;
+  }
+
+  const campaigns = data?.campaigns || [];
+  const daily = data?.daily || [];
+  const totals = data?.totals || {};
+
+  // Gera sparklines dinamicamente a partir dos dados diários
+  const sparklineDataSpend = daily.map((d: any) => d.spend || 0);
+  const sparklineDataMessages = daily.map((d: any) => d.messages || 0);
+  const sparklineDataClicks = daily.map((d: any) => d.clicks || 0);
+  const sparklineDataReach = daily.map((d: any) => d.reach || 0);
+  const sparklineDataImpressions = daily.map((d: any) => d.impressions || 0);
 
   // Dados para o gráfico de área (Investimento vs Mensagens)
-  const areaData = mockDailyMetrics.map(d => ({
+  const areaData = daily.map((d: any) => ({
     name: d.date,
     Investimento: d.spend,
     Mensagens: d.messages,
   }));
 
   // Dados para o gráfico de rosca (Melhores Anúncios)
-  const pieData = mockCampaigns.map(c => ({
-    name: c.adName.length > 15 ? c.adName.substring(0, 15) + '...' : c.adName,
-    value: c.messages,
+  const pieData = campaigns.map((c: any) => ({
+    name: c.adName ? (c.adName.length > 15 ? c.adName.substring(0, 15) + '...' : c.adName) : 'Desconhecido',
+    value: c.messages || 0,
   }));
   
   const COLORS = ['#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE'];
@@ -91,11 +113,11 @@ export default function Dashboard() {
       <main className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4 overflow-y-auto">
         {/* Top Metrics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <MetricCard title="Investimento" value={formatCurrency(totalMetrics.spend)} change={totalMetrics.spendChange} data={sparklineDataSpend} color="#EF4444" />
-          <MetricCard title="Mensagens Iniciadas" value={totalMetrics.messages.toString()} change={totalMetrics.messagesChange} data={sparklineDataMessages} color="#10B981" />
-          <MetricCard title="Cliques" value={formatNumber(totalMetrics.clicks)} change={totalMetrics.clicksChange} data={sparklineDataClicks} color="#3B82F6" />
-          <MetricCard title="Alcance" value={formatNumber(totalMetrics.reach)} change={totalMetrics.reachChange} data={sparklineDataReach} color="#8B5CF6" />
-          <MetricCard title="Impressões" value={formatNumber(totalMetrics.impressions)} change={totalMetrics.impressionsChange} data={sparklineDataImpressions} color="#F59E0B" />
+          <MetricCard title="Investimento" value={totals.spend ? formatCurrency(totals.spend) : 'R$ 0,00'} change={totals.spendChange || 0} data={sparklineDataSpend} color="#EF4444" />
+          <MetricCard title="Mensagens Iniciadas" value={totals.messages?.toString() || '0'} change={totals.messagesChange || 0} data={sparklineDataMessages} color="#10B981" />
+          <MetricCard title="Cliques" value={totals.clicks ? formatNumber(totals.clicks) : '0'} change={totals.clicksChange || 0} data={sparklineDataClicks} color="#3B82F6" />
+          <MetricCard title="Alcance" value={totals.reach ? formatNumber(totals.reach) : '0'} change={totals.reachChange || 0} data={sparklineDataReach} color="#8B5CF6" />
+          <MetricCard title="Impressões" value={totals.impressions ? formatNumber(totals.impressions) : '0'} change={totals.impressionsChange || 0} data={sparklineDataImpressions} color="#F59E0B" />
         </div>
 
         {/* Main Content Grid */}
@@ -105,21 +127,21 @@ export default function Dashboard() {
           <div className="lg:col-span-3">
             <FunnelChart 
               mainSteps={[
-                { label: 'Impressões', value: '316 mil', width: 100 },
-                { label: 'Alcance', value: '171 mil', width: 80 },
-                { label: 'Cliques', value: '280', width: 50 },
-                { label: 'Mensagens', value: '145', width: 35 },
+                { label: 'Impressões', value: totals.impressions ? formatNumber(totals.impressions) : '0', width: 100 },
+                { label: 'Alcance', value: totals.reach ? formatNumber(totals.reach) : '0', width: 80 },
+                { label: 'Cliques', value: totals.clicks ? formatNumber(totals.clicks) : '0', width: 50 },
+                { label: 'Mensagens', value: totals.messages?.toString() || '0', width: 35 },
               ]}
               sideSteps={[
-                { label: 'Video View 25%', value: '8.523' },
-                { label: 'Video View 75%', value: '1.827' },
-                { label: 'Taxa de Cliques (CTR)', value: '0,09%' },
-                { label: 'Taxa de Mensagens Enviadas', value: '51,79%' },
+                { label: 'Video View 25%', value: totals.funnelVideo25 ? formatNumber(totals.funnelVideo25) : '0' },
+                { label: 'Video View 75%', value: totals.funnelVideo75 ? formatNumber(totals.funnelVideo75) : '0' },
+                { label: 'Taxa de Cliques (CTR)', value: totals.ctr ? `${totals.ctr}%` : '0,00%' },
+                { label: 'Taxa de Mensagens', value: totals.messageRate ? `${totals.messageRate}%` : '0,00%' },
               ]}
               bottomMetrics={[
-                { label: 'Video View Rate', value: '8,54%' },
-                { label: 'Frequência', value: '1,85' },
-                { label: 'CPM', value: 'R$ 4,08' },
+                { label: 'Video View Rate', value: totals.vvr ? `${totals.vvr}%` : '0,00%' },
+                { label: 'Frequência', value: totals.frequency?.toString() || '0' },
+                { label: 'CPM', value: totals.cpm ? `R$ ${totals.cpm}` : 'R$ 0,00' },
               ]}
             />
           </div>
@@ -127,8 +149,8 @@ export default function Dashboard() {
           {/* Middle: Charts & Costs */}
           <div className="lg:col-span-6 flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
-               <CostCard title="Custo por Mensagem" value={formatCurrency(totalMetrics.costPerMessage)} change={117.6} progress={65} progressColor="bg-green-500" target="R$ 7,57" />
-               <CostCard title="Custo por Clique (CPC)" value={formatCurrency(totalMetrics.cpc)} change={175.6} progress={80} progressColor="bg-red-500" target="R$ 2,62" />
+               <CostCard title="Custo por Mensagem" value={totals.costPerMessage ? formatCurrency(totals.costPerMessage) : 'R$ 0,00'} change={117.6} progress={65} progressColor="bg-green-500" target="R$ 7,57" />
+               <CostCard title="Custo por Clique (CPC)" value={totals.cpc ? formatCurrency(totals.cpc) : 'R$ 0,00'} change={175.6} progress={80} progressColor="bg-red-500" target="R$ 2,62" />
             </div>
             
             <Card className="flex-1 bg-[#18191A] border-gray-800 text-white">
@@ -176,7 +198,7 @@ export default function Dashboard() {
                         paddingAngle={2}
                         dataKey="value"
                       >
-                        {pieData.map((entry, index) => (
+                        {pieData.map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
@@ -190,13 +212,13 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="w-full mt-2 space-y-1">
-                  {pieData.map((entry, index) => (
+                  {pieData.map((entry: any, index: number) => (
                     <div key={index} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[index]}}></div>
                         <span className="text-gray-400 truncate w-24">{entry.name}</span>
                       </div>
-                      <span className="text-gray-300">{((entry.value / totalMetrics.messages) * 100).toFixed(1)}%</span>
+                      <span className="text-gray-300">{totals.messages ? ((entry.value / totals.messages) * 100).toFixed(1) : 0}%</span>
                     </div>
                   ))}
                 </div>
@@ -221,8 +243,8 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockCampaigns.map((camp) => (
-                    <TableRow key={camp.id} className="border-gray-800 hover:bg-[#242526]">
+                  {campaigns.map((camp: any) => (
+                    <TableRow key={camp.id || Math.random()} className="border-gray-800 hover:bg-[#242526]">
                       <TableCell className="font-medium text-sm text-gray-300">{camp.campaignName}</TableCell>
                       <TableCell className="text-sm text-gray-400">{camp.adSetName}</TableCell>
                       <TableCell className="text-sm text-gray-400">{camp.adName}</TableCell>
@@ -235,7 +257,7 @@ export default function Dashboard() {
               </Table>
             </div>
             <div className="p-3 flex justify-between items-center text-xs text-gray-500 border-t border-gray-800">
-              <span>1 - 4 / 4</span>
+              <span>1 - {campaigns.length} / {campaigns.length}</span>
               <div className="flex gap-2">
                 <button className="hover:text-white">{'<'}</button>
                 <button className="hover:text-white">{'>'}</button>

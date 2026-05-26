@@ -12,6 +12,11 @@ interface DbSchema {
     source?: string;
     title?: string;
   }[];
+  metrics?: {
+    campaigns: any[];
+    daily: any[];
+    totals: Record<string, any>;
+  };
 }
 
 const DB_FILE_NAME = 'db.json';
@@ -38,7 +43,8 @@ export async function getDb(): Promise<Low<DbSchema>> {
     const adapter = new JSONFile<DbSchema>(DB_FULL_PATH);
     dbInstance = new Low<DbSchema>(adapter, { 
       examples: [],
-      notifications: []
+      notifications: [],
+      metrics: { campaigns: [], daily: [], totals: {} }
     });
 
     await dbInstance.read();
