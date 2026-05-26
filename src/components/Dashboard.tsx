@@ -243,7 +243,7 @@ export default function Dashboard() {
                     <PieChart>
                       <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value">
                         {pieData.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index] % COLORS.length} />
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip contentStyle={{backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff'}} />
@@ -259,7 +259,7 @@ export default function Dashboard() {
                   {pieData.map((entry: any, index: number) => (
                     <div key={index} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[index]}}></div>
+                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[index % COLORS.length]}}></div>
                         <span className="text-gray-400 truncate w-24">{entry.name}</span>
                       </div>
                       <span className="text-gray-300">{totals.messages ? ((entry.value / totals.messages) * 100).toFixed(1) : 0}%</span>
