@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { Bell, Volume2, ExternalLink, Copy, Check, Key, AlertTriangle } from 'lucide-react';
+import { Bell, Volume2, ExternalLink, Copy, Check, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -19,14 +19,21 @@ export default function NotificationReceiver() {
   const lastIdRef = useRef<number | null>(null);
   const [copied, setCopied] = useState(false);
   
+  // Estado para controlar se a permissão já foi concedida
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  
   // Fix Hydration: Initialize with placeholder and update in useEffect
   const [webhookUrl, setWebhookUrl] = useState('...');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setWebhookUrl(`${window.location.origin}/api/webhook/notification`);
-      // Solicitar permissão de notificação ao carregar
-      requestNotificationPermission();
+      // Checar permissão atual ao carregar
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          setPermissionGranted(true);
+        }
+      }
     }
   }, []);
 
@@ -78,17 +85,26 @@ export default function NotificationReceiver() {
   };
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        setPermissionGranted(true);
+        toast.info('Notificações já estão ativadas!');
+        return;
+      }
+      
       try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          toast.success('Notificações ativadas! Você receberá alertas de emergência.');
+          setPermissionGranted(true);
+          toast.success('Notificações ativadas com sucesso!');
         } else {
-          toast.error('Permissão de notificação negada. Ative nas configurações do navegador.');
+          toast.error('Permissão negada. Por favor, ative nas configurações do navegador.');
         }
       } catch (error) {
         console.error('Error requesting notification permission', error);
       }
+    } else {
+      toast.error('Seu navegador não suporta notificações.');
     }
   };
 
@@ -99,8 +115,8 @@ export default function NotificationReceiver() {
           body: notification.message,
           icon: '/icons/icon-192.svg',
           badge: '/icons/icon-192.svg',
-          tag: notification.id.toString(), // Evita duplicatas na tela de bloqueio
-          requireInteraction: true, // Mantém a notificação na tela até o usuário interagir (Desktop)
+          tag: notification.id.toString(),
+          requireInteraction: true,
         });
       } catch (e) {
         console.error('Failed to show native notification', e);
@@ -163,12 +179,15 @@ export default function NotificationReceiver() {
 
   const testAlert = () => {
     playMelodyAlert();
-    showEmergencyNotification({
-      id: 0,
-      message: 'Este é um teste do som de alerta!',
-      timestamp: new Date().toISOString(),
-    });
-    toast.info('Testando melodia de alerta e notificação');
+    if (permissionGranted) {
+        showEmergencyNotification({
+        id: 0,
+        message: 'Este é um teste do som de alerta!',
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+        toast.warning("Ative as notificações primeiro para ver o alerta nativo.");
+    }
   };
 
   const copyUrl = () => {
@@ -215,6 +234,29 @@ export default function NotificationReceiver() {
           </Button>
         </div>
       </div>
+      
+      {!permissionGranted && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-800 p-3 max-w-md mx-auto w-full text-center">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
+            Ative as notificações para receber alertas de emergência.
+          </p>
+          <Button 
+            onClick={requestNotificationPermission}
+            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold"
+          >
+            <Bell size={18} className="mr-2" />
+            Permitir Notificações
+          </Button>
+        </div>
+      )}
+
+      {permissionGranted && (
+        <div className="bg-green-100 dark:bg-green-900/30 border-b border-green-200 dark:border-green-800 p-2 max-w-md mx-auto w-full text-center">
+          <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+            Notificações Ativas 🔔
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-md mx-auto w-full pb-4">
         {notifications.length === 0 ? (
