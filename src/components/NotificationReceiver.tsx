@@ -14,20 +14,17 @@ interface Notification {
 export default function NotificationReceiver() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
   const lastIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchNotifications();
     requestNotificationPermission();
     
-    // Poll for new notifications every 2 seconds
     const interval = setInterval(fetchNotifications, 2000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    // Scroll to bottom when new notifications arrive
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [notifications]);
 
@@ -37,18 +34,11 @@ export default function NotificationReceiver() {
       if (res.ok) {
         const data: Notification[] = await res.json();
         
-        // Check if there are new notifications
         if (data.length > notifications.length) {
-          const newNotifs = data.slice(notifications.length);
-          
-          newNotifs.forEach(() => {
-            playLoudAlert();
-          });
-
+          playLoudAlert();
           setNotifications(data);
           lastIdRef.current = data[data.length - 1].id;
         } else if (data.length > 0 && lastIdRef.current !== data[data.length - 1].id) {
-           // In case of reordering or missed updates
            setNotifications(data);
            lastIdRef.current = data[data.length - 1].id;
         } else if (notifications.length === 0 && data.length > 0) {
@@ -72,27 +62,23 @@ export default function NotificationReceiver() {
 
   const playLoudAlert = () => {
     try {
-      // Create an audio context for the loud beep
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // High frequency square wave for a harsh/loud alert
       oscillator.frequency.value = 880; 
       oscillator.type = 'square'; 
-      gainNode.gain.value = 1.0; // Max volume
+      gainNode.gain.value = 1.0; 
       
       oscillator.start();
       
       setTimeout(() => {
         oscillator.stop();
         audioContext.close();
-      }, 1500); // 1.5 second alert
-      
+      }, 1500); 
     } catch (error) {
       console.error('Audio play failed', error);
     }
@@ -113,7 +99,6 @@ export default function NotificationReceiver() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
       <div className="bg-blue-600 dark:bg-blue-800 p-4 pt-12 shadow-md z-10">
         <div className="flex items-center justify-between max-w-md mx-auto">
           <div className="flex items-center gap-3">
@@ -131,7 +116,6 @@ export default function NotificationReceiver() {
         </div>
       </div>
 
-      {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-md mx-auto w-full pb-4">
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-70">
