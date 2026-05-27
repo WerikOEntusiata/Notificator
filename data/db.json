@@ -323,6 +323,24 @@
       "metaAdsAccessToken": "EAAXEaq1tVqwBRgw74P0EZAWmLSBRaNL0WyZAKHTLDfgHbj2gSvEPE6ZAsJZAGlYWcJ7PVx5Qq5dMFZB2fVK3oSqXvXwZAAZBmkXVguMrv9KfBTGzywugvwK3GZAIJBGDq6bKfVOXcMnebHLR0A5FwKgXTykKTKvpQX3kw39PILphgvPfTNd83dCk4ivSazXX7mbihQC7qtgMgADxRFh3OipBekuY82Msoml5CSqk",
       "createdAt": "2026-05-26T08:56:54.095Z",
       "isActive": true
+    },
+    {
+      "id": "89d370cc-06fc-4633-9640-6a842c3c6ec0",
+      "name": "V8",
+      "slug": "v8-4bfa93",
+      "metaAdsAccountId": "582487400875078",
+      "metaAdsAccessToken": "EAAXEaq1tVqwBRoofpODcMe0kbJ1OJf7tZAf6go7MradwW8QyWVRELo7LZAmkGE8Pq81G65ZC8BGLQPfRQfNdpg5H7S1QFkmoK6jywuBqIY1SomGBMTuw9f1TQt2whgiewvyASo04RddZAU1UV3574MdznEHpaSz6uWq5dx9tmNdbLccynFVYLxH4gpVQ",
+      "createdAt": "2026-05-26T11:59:23.394Z",
+      "isActive": true
+    },
+    {
+      "id": "e97d8772-6707-4e0a-b46c-e94e54d09290",
+      "name": "Panossi",
+      "slug": "panossi-82640a",
+      "metaAdsAccountId": "1810253906429500",
+      "metaAdsAccessToken": "EAAXEaq1tVqwBRoofpODcMe0kbJ1OJf7tZAf6go7MradwW8QyWVRELo7LZAmkGE8Pq81G65ZC8BGLQPfRQfNdpg5H7S1QFkmoK6jywuBqIY1SomGBMTuw9f1TQt2whgiewvyASo04RddZAU1UV3574MdznEHpaSz6uWq5dx9tmNdbLccynFVYLxH4gpVQ",
+      "createdAt": "2026-05-26T12:00:56.584Z",
+      "isActive": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, use } from 'react';
+import Link from 'next/link';
 import SparklineChart from '@/components/ui/SparklineChart';
 import FunnelChart from '@/components/FunnelChart';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Download, Calendar, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { Settings, Download, Calendar, RefreshCw, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import { usePdfDownload } from '@/hooks/use-pdf-download';
 import { toast } from 'sonner';
 
@@ -322,6 +323,7 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
           </div>
         </div>
 
+        {/* Tabela de Campanhas com links para detalhes */}
         <Card className="bg-[#18191A] border-gray-800 text-white">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -334,17 +336,34 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
                     <TableHead className="text-gray-400 text-right">Investimento</TableHead>
                     <TableHead className="text-gray-400 text-right">Cliques</TableHead>
                     <TableHead className="text-gray-400 text-right">Mensagens</TableHead>
+                    <TableHead className="text-gray-400 text-center w-[60px]">Detalhes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {campaigns.map((camp: any) => (
                     <TableRow key={camp.id || Math.random()} className="border-gray-800 hover:bg-[#242526]">
-                      <TableCell className="font-medium text-sm text-gray-300">{camp.campaignName}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <Link
+                          href={`/dashboard/${slug}/campaign/${camp.campaignId || camp.id}`}
+                          className="text-blue-400 hover:text-blue-300 hover:underline truncate block max-w-[280px]"
+                        >
+                          {camp.campaignName}
+                        </Link>
+                      </TableCell>
                       <TableCell className="text-sm text-gray-400">{camp.adSetName}</TableCell>
                       <TableCell className="text-sm text-gray-400">{camp.adName}</TableCell>
                       <TableCell className="text-right text-sm font-medium">{formatCurrency(camp.spend)}</TableCell>
                       <TableCell className="text-right text-sm text-gray-300">{camp.clicks}</TableCell>
                       <TableCell className="text-right text-sm text-blue-400 font-medium">{camp.messages}</TableCell>
+                      <TableCell className="text-center">
+                        <Link
+                          href={`/dashboard/${slug}/campaign/${camp.campaignId || camp.id}`}
+                          className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                          title="Ver detalhes da campanha"
+                        >
+                          <ExternalLink size={14} />
+                        </Link>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

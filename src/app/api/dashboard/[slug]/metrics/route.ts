@@ -93,7 +93,7 @@ async function fetchMetaAdsData(accountId: string, accessToken: string, period: 
     };
 
     const campRes = await fetch(
-      `${baseUrl}?access_token=${accessToken}&level=campaign&fields=campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
+      `${baseUrl}?access_token=${accessToken}&level=campaign&fields=campaign_id,campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
     );
     const campJson = await campRes.json();
 
@@ -101,6 +101,7 @@ async function fetchMetaAdsData(accountId: string, accessToken: string, period: 
     if (campJson.data && campJson.data.length > 0) {
       finalCampaigns = campJson.data.map((c: any, i: number) => ({
         id: `meta-${i}`,
+        campaignId: c.campaign_id || '',
         campaignName: c.campaign_name,
         adSetName: 'Ver Detalhes',
         adName: c.name || 'Ver Detalhes',

@@ -23,7 +23,6 @@ function getDateRangeForMeta(period: string) {
   return `{"since":"${formatDate(since)}","until":"${formatDate(now)}"}`;
 }
 
-// Ação correta para contar mensagens conforme documentação da Meta
 const MESSAGE_ACTION_TYPE = 'onsite_conversion.total_messaging_connection';
 
 function extractMessages(data: any): number {
@@ -31,14 +30,12 @@ function extractMessages(data: any): number {
   
   if (data.actions && Array.isArray(data.actions)) {
     data.actions.forEach((a: any) => {
-      // Usa apenas a ação correta: onsite_conversion.total_messaging_connection
       if (a.action_type === MESSAGE_ACTION_TYPE) {
         count += parseInt(a.value || '0');
       }
     });
   }
   
-  // Fallback para dados antigos que usam 'results'
   if (count === 0 && data.results) {
      count = parseInt(data.results || '0');
   }
@@ -58,11 +55,9 @@ async function fetchMetaAdsData(period: string = '30d') {
   const baseUrl = `https://graph.facebook.com/v19.0/${formattedId}/insights`;
   const timeRange = getDateRangeForMeta(period);
 
-  // Adicionamos 'actions' para obter os dados de mensagens
   const baseFields = 'spend,impressions,reach,clicks,frequency,actions,results,cpm,cpc,ctr';
 
   try {
-    // Busca totais da conta
     const totalsRes = await fetch(
       `${baseUrl}?access_token=${token}&level=account&fields=${baseFields}&time_range=${encodeURIComponent(timeRange)}`
     );
@@ -101,9 +96,8 @@ async function fetchMetaAdsData(period: string = '30d') {
       funnelVideo75: 0,
     };
 
-    // Busca dados por campanha
     const campRes = await fetch(
-      `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
+      `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_id,campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
     );
     const campJson = await campRes.json();
 
@@ -114,6 +108,7 @@ async function fetchMetaAdsData(period: string = '30d') {
          const campSpend = parseFloat(c.spend || '0');
          return {
           id: `meta-${i}`,
+          campaignId: c.campaign_id || '',
           campaignName: c.campaign_name,
           adSetName: 'Ver Detalhes',
           adName: c.name || 'Ver Detalhes',
@@ -134,7 +129,6 @@ async function fetchMetaAdsData(period: string = '30d') {
       });
     }
 
-    // Busca dados diários
     const dailyRes = await fetch(
       `${baseUrl}?access_token=${token}&level=account&fields=spend,impressions,reach,clicks,actions,results&time_range=${encodeURIComponent(timeRange)}&time_increment=1`
     );
