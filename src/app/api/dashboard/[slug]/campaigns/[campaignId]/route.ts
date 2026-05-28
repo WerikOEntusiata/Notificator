@@ -72,7 +72,39 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       messageRate: clicks > 0 ? (msgs / clicks) * 100 : 0,
     };
 
-    // 2. Breakdown por Ad Set
+    // 2. Breakdown por Gênero
+    const genderRes = await fetch(
+      `${baseUrl}/insights?access_token=${accessToken}&fields=spend,impressions,clicks,messages&time_range=${encodeURIComponent(timeRange)}&breakdowns=gender`
+    );
+    const genderJson = await genderRes.json();
+
+    const genderBreakdown = (genderJson.data || []).map((g: any) => ({
+      gender: g.gender || 'unknown',
+      label: g.gender === 'male' ? 'Masculino' : g.gender === 'female' ? 'Feminino' : 'Desconhecido',
+      spend: parseFloat(g.spend || '0'),
+      impressions: parseInt(g.impressions || '0'),
+      clicks: parseInt(g.clicks || '0'),
+      messages: extractMessages(g),
+    }));
+
+    // 3. Breakdown por Idade
+    const ageRes = await fetch(
+      `${baseUrl}/insights?access_token=${accessToken}&fields=spend,impressions,clicks,messages&time_range=${encodeURIComponent(timeRange)}&breakdowns=age`
+    );
+    const ageJson = await ageRes.json();
+
+    const ageBreakdown = (ageJson.data || []).map((a: any) => ({
+      ageRange: a.age || 'Desconhecido',
+      spend: parseFloat(a.spend || '0'),
+      impressions: parseInt(a.impressions || '0'),
+      clicks: parseInt(a.clicks || '0'),
+      messages: extractMessages(a),
+    })).sort((a: any, b: any) => {
+      const order = ['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+      return order.indexOf(a.ageRange) - order.indexOf(b.ageRange);
+    });
+
+    // 4. Breakdown por Ad Set
     const adSetRes = await fetch(
       `${baseUrl}/insights?access_token=${accessToken}&level=adset&fields=adset_id,adset_name,${metricFields}&time_range=${encodeURIComponent(timeRange)}&limit=100`
     );
@@ -80,11 +112,10 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
 
     const adSets = (adSetJson.data || []).map((a: any) => {
       const aMsgs = extractMessages(a);
-      const aSpend = parseFloat(a.spend || '0');
       return {
         id: a.adset_id,
         name: a.adset_name,
-        spend: aSpend,
+        spend: parseFloat(a.spend || '0'),
         impressions: parseInt(a.impressions || '0'),
         clicks: parseInt(a.clicks || '0'),
         reach: parseInt(a.reach || '0'),
@@ -96,7 +127,7 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       };
     });
 
-    // 3. Breakdown por Anúncio
+    // 5. Breakdown por Anúncio
     const adRes = await fetch(
       `${baseUrl}/insights?access_token=${accessToken}&level=ad&fields=ad_id,ad_name,${metricFields}&time_range=${encodeURIComponent(timeRange)}&limit=100`
     );
@@ -104,11 +135,10 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
 
     const ads = (adJson.data || []).map((a: any) => {
       const aMsgs = extractMessages(a);
-      const aSpend = parseFloat(a.spend || '0');
       return {
         id: a.ad_id,
         name: a.ad_name,
-        spend: aSpend,
+        spend: parseFloat(a.spend || '0'),
         impressions: parseInt(a.impressions || '0'),
         clicks: parseInt(a.clicks || '0'),
         reach: parseInt(a.reach || '0'),
@@ -120,7 +150,7 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       };
     });
 
-    // 4. Dados diários da campanha
+    // 6. Dados diários da campanha
     const dailyRes = await fetch(
       `${baseUrl}/insights?access_token=${accessToken}&level=campaign&fields=spend,impressions,reach,clicks,actions,results&time_range=${encodeURIComponent(timeRange)}&time_increment=1`
     );
@@ -137,7 +167,7 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       reach: parseInt(d.reach || '0'),
     })).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    return { totals, adSets, ads, daily, status: 'success' };
+    return { totals, genderBreakdown, ageBreakdown, adSets, ads, daily, status: 'success' };
   } catch (error) {
     console.error('Erro ao buscar detalhes da campanha:', error);
     return { error: 'Falha na conexão com Meta Ads', status: 'error' };
@@ -163,10 +193,6 @@ export async function GET(
     if (!client.isActive) {
       return NextResponse.json({ error: 'Dashboard desativado' }, { status: 403 });
     }
-
-    const formattedId = client.metaAdsAccountId.startsWith('act_')
-      ? client.metaAdsAccountId.replace('act_', '')
-      : client.metaAdsAccountId;
 
     const campaignMetaId = campaignId.startsWith('act_') ? campaignId.replace('act_', '') : campaignId;
     const result = await fetchCampaignDetails(campaignMetaId, client.metaAdsAccessToken, period);

@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowLeft, Calendar, RefreshCw, Loader2, AlertCircle, TrendingUp, MessageSquare, MousePointerClick, Eye, DollarSign, BarChart3, Target } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { ArrowLeft, Calendar, RefreshCw, Loader2, AlertCircle, TrendingUp, MessageSquare, MousePointerClick, Eye, DollarSign, BarChart3, Target, Users, User } from 'lucide-react';
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 const formatNumber = (val: number) => new Intl.NumberFormat('pt-BR').format(val);
@@ -92,18 +92,35 @@ export default function CampaignDetail({ params }: { params: Promise<{ slug: str
   }
 
   const totals = data?.totals || {};
+  const genderBreakdown = data?.genderBreakdown || [];
+  const ageBreakdown = data?.ageBreakdown || [];
   const adSets = data?.adSets || [];
   const ads = data?.ads || [];
   const daily = data?.daily || [];
   const clientName = data?.clientName || 'Cliente';
 
-  const campaignName = data?.campaignName || 'Campanha';
   const chartData = daily.map((d: any) => ({
     name: d.date,
     Investimento: d.spend,
     Mensagens: d.messages,
     Cliques: d.clicks,
-    Impressões: d.impressions,
+  }));
+
+  // Dados para gráfico de gênero
+  const genderChartData = genderBreakdown.map((g: any) => ({
+    name: g.label,
+    Investimento: g.spend,
+    Cliques: g.clicks,
+    Mensagens: g.messages,
+    Impressões: g.impressions,
+  }));
+
+  // Dados para gráfico de idade
+  const ageChartData = ageBreakdown.map((a: any) => ({
+    name: a.ageRange,
+    Investimento: a.spend,
+    Cliques: a.clicks,
+    Mensagens: a.messages,
   }));
 
   return (
@@ -124,7 +141,7 @@ export default function CampaignDetail({ params }: { params: Promise<{ slug: str
               <div>
                 <p className="text-xs text-blue-400">{clientName}</p>
                 <h1 className="text-lg font-bold text-white tracking-tight truncate max-w-[500px]">
-                  {campaignName}
+                  Campanha
                 </h1>
                 <p className="text-xs text-gray-500">Detalhes da Campanha</p>
               </div>
@@ -193,24 +210,171 @@ export default function CampaignDetail({ params }: { params: Promise<{ slug: str
                       <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                     </linearGradient>
-                    <linearGradient id="campColorClick" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={60} />
-                  <YAxis yAxisId="left" tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
-                    labelStyle={{ color: '#D1D5DB' }}
-                  />
-                  <Area yAxisId="left" type="monotone" dataKey="Investimento" stroke="#10B981" fillOpacity={1} fill="url(#campColorInvest)" strokeWidth={2} />
-                  <Area yAxisId="left" type="monotone" dataKey="Mensagens" stroke="#3B82F6" fillOpacity={1} fill="url(#campColorMsg)" strokeWidth={2} />
-                  <Area yAxisId="right" type="monotone" dataKey="Cliques" stroke="#F59E0B" fillOpacity={1} fill="url(#campColorClick)" strokeWidth={2} />
+                  <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} />
+                  <Legend />
+                  <Area type="monotone" dataKey="Investimento" stroke="#10B981" fillOpacity={1} fill="url(#campColorInvest)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="Mensagens" stroke="#3B82F6" fillOpacity={1} fill="url(#campColorMsg)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Breakdown por Gênero e Idade */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Gráfico de Gênero */}
+          <Card className="bg-[#18191A] border-gray-800 text-white">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <Users size={16} className="text-purple-400" />
+                Distribuição por Gênero
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {genderBreakdown.length > 0 ? (
+                <>
+                  <div className="h-[200px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={genderChartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} />
+                        <Legend />
+                        <Bar dataKey="Investimento" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Mensagens" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {genderBreakdown.map((g: any, i: number) => {
+                      const totalGenderSpend = genderBreakdown.reduce((sum: number, item: any) => sum + item.spend, 0);
+                      const percentage = totalGenderSpend > 0 ? ((g.spend / totalGenderSpend) * 100).toFixed(1) : '0';
+                      return (
+                        <div key={i} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <User size={14} className={g.gender === 'male' ? 'text-blue-400' : g.gender === 'female' ? 'text-pink-400' : 'text-gray-400'} />
+                            <span className="text-gray-300">{g.label}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="text-gray-400">{formatCurrency(g.spend)} ({percentage}%)</span>
+                            <span className="text-blue-400">{g.messages} msgs</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-500 text-center py-8">Dados de gênero não disponíveis</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Idade */}
+          <Card className="bg-[#18191A] border-gray-800 text-white">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <Users size={16} className="text-green-400" />
+                Distribuição por Idade
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ageBreakdown.length > 0 ? (
+                <>
+                  <div className="h-[200px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ageChartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} />
+                        <Legend />
+                        <Bar dataKey="Investimento" fill="#10B981" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Mensagens" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {ageBreakdown.map((a: any, i: number) => (
+                      <div key={i} className="bg-[#242526] rounded p-2 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-gray-400">{a.ageRange}</span>
+                          <span className="text-green-400 font-medium">{formatCurrency(a.spend)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">{a.messages} mensagens</span>
+                          <span className="text-gray-500">{a.clicks} cliques</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-500 text-center py-8">Dados de idade não disponíveis</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabela de Anúncios */}
+        <Card className="bg-[#18191A] border-gray-800 text-white">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-gray-300 flex items-center gap-2">
+              <Eye size={16} className="text-blue-400" />
+              Anúncios ({ads.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-gray-700 hover:bg-transparent">
+                    <TableHead className="text-gray-400 w-[300px]">Anúncio</TableHead>
+                    <TableHead className="text-gray-400 text-right">Investimento</TableHead>
+                    <TableHead className="text-gray-400 text-right">Impressões</TableHead>
+                    <TableHead className="text-gray-400 text-right">Cliques</TableHead>
+                    <TableHead className="text-gray-400 text-right">Alcance</TableHead>
+                    <TableHead className="text-gray-400 text-right">Mensagens</TableHead>
+                    <TableHead className="text-gray-400 text-right">CTR</TableHead>
+                    <TableHead className="text-gray-400 text-right">CPC</TableHead>
+                    <TableHead className="text-gray-400 text-right">CPM</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ads.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-gray-500 py-8">
+                        Nenhum anúncio encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    ads.map((ad: any) => {
+                      const pctSpend = totals.spend > 0 ? ((ad.spend / totals.spend) * 100).toFixed(1) : '0';
+                      return (
+                        <TableRow key={ad.id} className="border-gray-800 hover:bg-[#242526]">
+                          <TableCell className="font-medium text-sm text-gray-300 max-w-[300px] truncate">
+                            {ad.name}
+                            <span className="text-[10px] text-gray-600 ml-2">{pctSpend}% do orçamento</span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-medium">{formatCurrency(ad.spend)}</TableCell>
+                          <TableCell className="text-right text-sm text-gray-300">{formatNumber(ad.impressions)}</TableCell>
+                          <TableCell className="text-right text-sm text-gray-300">{formatNumber(ad.clicks)}</TableCell>
+                          <TableCell className="text-right text-sm text-gray-300">{formatNumber(ad.reach)}</TableCell>
+                          <TableCell className="text-right text-sm text-blue-400 font-medium">{ad.messages}</TableCell>
+                          <TableCell className="text-right text-sm text-gray-300">{ad.ctr.toFixed(2)}%</TableCell>
+                          <TableCell className="text-right text-sm text-gray-300">{formatCurrency(ad.cpc)}</TableCell>
+                          <TableCell className="text-right text-sm text-gray-300">{formatCurrency(ad.cpm)}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
@@ -218,7 +382,10 @@ export default function CampaignDetail({ params }: { params: Promise<{ slug: str
         {/* Tabela de Ad Sets */}
         <Card className="bg-[#18191A] border-gray-800 text-white">
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-300">Conjuntos de Anúncios ({adSets.length})</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-300 flex items-center gap-2">
+              <Target size={16} className="text-orange-400" />
+              Conjuntos de Anúncios ({adSets.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -234,13 +401,12 @@ export default function CampaignDetail({ params }: { params: Promise<{ slug: str
                     <TableHead className="text-gray-400 text-right">CTR</TableHead>
                     <TableHead className="text-gray-400 text-right">CPC</TableHead>
                     <TableHead className="text-gray-400 text-right">CPM</TableHead>
-                    <TableHead className="text-gray-400 text-right">Freq.</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {adSets.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-gray-500 py-8">
+                      <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                         Nenhum conjunto de anúncio encontrado
                       </TableCell>
                     </TableRow>
@@ -261,64 +427,6 @@ export default function CampaignDetail({ params }: { params: Promise<{ slug: str
                           <TableCell className="text-right text-sm text-gray-300">{adSet.ctr.toFixed(2)}%</TableCell>
                           <TableCell className="text-right text-sm text-gray-300">{formatCurrency(adSet.cpc)}</TableCell>
                           <TableCell className="text-right text-sm text-gray-300">{formatCurrency(adSet.cpm)}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-400">{adSet.frequency.toFixed(2)}</TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabela de Anúncios */}
-        <Card className="bg-[#18191A] border-gray-800 text-white">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-300">Anúncios ({ads.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-700 hover:bg-transparent">
-                    <TableHead className="text-gray-400 w-[300px]">Anúncio</TableHead>
-                    <TableHead className="text-gray-400 text-right">Investimento</TableHead>
-                    <TableHead className="text-gray-400 text-right">Impressões</TableHead>
-                    <TableHead className="text-gray-400 text-right">Cliques</TableHead>
-                    <TableHead className="text-gray-400 text-right">Alcance</TableHead>
-                    <TableHead className="text-gray-400 text-right">Mensagens</TableHead>
-                    <TableHead className="text-gray-400 text-right">CTR</TableHead>
-                    <TableHead className="text-gray-400 text-right">CPC</TableHead>
-                    <TableHead className="text-gray-400 text-right">CPM</TableHead>
-                    <TableHead className="text-gray-400 text-right">Freq.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ads.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center text-gray-500 py-8">
-                        Nenhum anúncio encontrado
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    ads.map((ad: any) => {
-                      const pctSpend = totals.spend > 0 ? ((ad.spend / totals.spend) * 100).toFixed(1) : '0';
-                      return (
-                        <TableRow key={ad.id} className="border-gray-800 hover:bg-[#242526]">
-                          <TableCell className="font-medium text-sm text-gray-300 max-w-[300px] truncate">
-                            {ad.name}
-                            <span className="text-[10px] text-gray-600 ml-2">{pctSpend}%</span>
-                          </TableCell>
-                          <TableCell className="text-right text-sm font-medium">{formatCurrency(ad.spend)}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-300">{formatNumber(ad.impressions)}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-300">{formatNumber(ad.clicks)}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-300">{formatNumber(ad.reach)}</TableCell>
-                          <TableCell className="text-right text-sm text-blue-400 font-medium">{ad.messages}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-300">{ad.ctr.toFixed(2)}%</TableCell>
-                          <TableCell className="text-right text-sm text-gray-300">{formatCurrency(ad.cpc)}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-300">{formatCurrency(ad.cpm)}</TableCell>
-                          <TableCell className="text-right text-sm text-gray-400">{ad.frequency.toFixed(2)}</TableCell>
                         </TableRow>
                       );
                     })
