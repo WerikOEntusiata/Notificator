@@ -36,7 +36,7 @@ const CAMPAIGN_STATUS_FILTER = encodeURIComponent(JSON.stringify([
   { "field": "campaign.effective_status", "operator": "NOT_IN", "value": ["DELETED", "ARCHIVED"] }
 ]));
 
-async function fetchClientData(accountId: string, accessToken: string, period: string) {
+async function fetchClientDataForPeriod(accountId: string, accessToken: string, period: string) {
   const formattedId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
   const baseUrl = `https://graph.facebook.com/v19.0/${formattedId}/insights`;
   const timeRange = getDateRange(period);
@@ -123,58 +123,81 @@ async function fetchClientData(accountId: string, accessToken: string, period: s
       ageBreakdown,
     };
   } catch (error) {
-    console.error('Erro ao buscar dados do cliente:', error);
+    console.error(`Erro ao buscar dados do cliente (${period}):`, error);
     return null;
   }
 }
 
-function buildContext(clientName: string, data: any, period: string) {
-  if (!data) {
-    return `Você é um assistente de marketing digital especializado em Meta Ads. O cliente "${clientName}" não possui dados disponíveis no momento. Informe ao usuário que não foi possível carregar os dados.`;
-  }
+function formatPeriodContext(periodLabel: string, data: any) {
+  if (!data) return `📊 Dados dos ${periodLabel}: Não disponíveis\n`;
 
   const t = data.totals;
-  const periodLabel = period === 'today' ? 'hoje' : period === '7d' ? 'últimos 7 dias' : period === '15d' ? 'últimos 15 dias' : 'últimos 30 dias';
+  return `📊 DADOS DOS ${periodLabel.toUpperCase()}:
+💰 Investimento total: R$ ${t.spend.toFixed(2)}
+👁️ Impressões: ${t.impressions.toLocaleString('pt-BR')}
+🎯 Alcance: ${t.reach.toLocaleString('pt-BR')}
+👆 Cliques: ${t.clicks.toLocaleString('pt-BR')}
+💬 Mensagens: ${t.messages}
+📈 CPM: R$ ${t.cpm.toFixed(2)} | CPC: R$ ${t.cpc.toFixed(2)} | CTR: ${t.ctr.toFixed(2)}%
+💲 Custo por mensagem: R$ ${t.costPerMessage.toFixed(2)}
+🔄 Frequência: ${t.frequency.toFixed(2)}
 
-  return `Você é um assistente de marketing digital especializado em Meta Ads. Responda sempre em português brasileiro de forma clara e objetiva. Use formatação com emojis para tornar a resposta mais visual.
+CAMPANHAS:
+${data.campaigns.map((c: any, i: number) => `  ${i + 1}. ${c.name} — R$ ${c.spend.toFixed(2)} | ${c.messages} msgs | CTR: ${c.ctr.toFixed(2)}%`).join('\n') || '  Nenhuma campanha com dados'}
+
+`;
+}
+
+function buildContext(clientName: string, allData: Record<string, any>, selectedPeriod: string) {
+  const periodLabels: Record<string, string> = {
+    '7d': 'últimos 7 dias',
+    '15d': 'últimos 15 dias',
+    '30d': 'últimos 30 dias',
+    'today': 'hoje',
+  };
+
+  const hasAnyData = Object.values(allData).some((d) => d !== null);
+
+  if (!hasAnyData) {
+    return `Você é um assistente de marketing digital especializado em Meta Ads. O cliente "${clientName}" não possui dados disponíveis no momento. Informe ao usuário que não foi possível carregar os dados e sugira verificar a configuração da conta.`;
+  }
+
+  let context = `Você é um assistente de marketing digital especializado em Meta Ads. Responda sempre em português brasileiro de forma clara, objetiva e amigável. Use emojis para tornar a resposta mais visual e organizada.
 
 O cliente se chama "${clientName}".
 
-Dados da conta de anúncios nos ${periodLabel}:
+⚠️ REGRAS IMPORTANTES SOBRE PERÍODOS:
+- Você tem acesso aos dados de TRÊS períodos: últimos 7 dias, últimos 15 dias e últimos 30 dias.
+- Quando o cliente perguntar sobre "as campanhas", "como estão", "métricas" ou qualquer coisa geral SEM especificar um período, você DEVE:
+  1. Apresentar um RESUMO RÁPIDO dos últimos 30 dias
+  2. Perguntar qual período ele gostaria de analisar com mais detalhes:
+     - "📅 Para qual período você gostaria de ver os detalhes?"
+     - Opções: "Últimos 7 dias", "Últimos 15 dias" ou "Últimos 30 dias"
+- Quando o cliente escolher um período, apresente os dados daquele período específico com mais detalhes
+- Compare os períodos quando fizer sentido (ex: "Nos últimos 7 dias o investimento foi R$ X, enquanto nos últimos 30 dias foi R$ Y")
+- Se o cliente perguntar sobre um período específico diretamente, vá direto para os dados daquele período
 
-RESUMO GERAL:
-- Investimento total: R$ ${t.spend.toFixed(2)}
-- Impressões: ${t.impressions.toLocaleString('pt-BR')}
-- Alcance: ${t.reach.toLocaleString('pt-BR')}
-- Cliques totais: ${t.clicks.toLocaleString('pt-BR')}
-- Mensagens iniciadas pelo Instagram/WhatsApp: ${t.messages}
-- CPM (custo por mil impressões): R$ ${t.cpm.toFixed(2)}
-- CPC (custo por clique): R$ ${t.cpc.toFixed(2)}
-- CTR (taxa de cliques): ${t.ctr.toFixed(2)}%
-- Custo por mensagem: R$ ${t.costPerMessage.toFixed(2)}
-- Taxa de mensagens (mensagens/cliques): ${t.messageRate.toFixed(2)}%
-- Frequência média: ${t.frequency.toFixed(2)}
+DADOS POR PERÍODO:
 
-CAMPANHAS ATIVAS (${data.campaigns.length} campanhas):
-${data.campaigns.map((c: any, i: number) => `
-${i + 1}. ${c.name}
-   Investimento: R$ ${c.spend.toFixed(2)} | Impressões: ${c.impressions.toLocaleString('pt-BR')} | Cliques: ${c.clicks} | Mensagens: ${c.messages}
-   CTR: ${c.ctr.toFixed(2)}% | CPC: R$ ${c.cpc.toFixed(2)} | CPM: R$ ${c.cpm.toFixed(2)} | Frequência: ${c.frequency.toFixed(2)}`).join('\n')}
+`;
 
-DADOS POR GÊNERO:
-${data.genderBreakdown.length > 0 ? data.genderBreakdown.map((g: any) => `- ${g.label}: R$ ${g.spend.toFixed(2)} investido, ${g.impressions.toLocaleString('pt-BR')} impressões, ${g.messages} mensagens`).join('\n') : 'Não disponível'}
+  const periodOrder = ['30d', '15d', '7d'];
+  for (const p of periodOrder) {
+    const label = periodLabels[p] || p;
+    context += formatPeriodContext(label, allData[p]);
+    context += '---\n\n';
+  }
 
-DADOS POR FAIXA ETÁRIA:
-${data.ageBreakdown.length > 0 ? data.ageBreakdown.map((a: any) => `- ${a.ageRange}: R$ ${a.spend.toFixed(2)} investido, ${a.impressions.toLocaleString('pt-BR')} impressões, ${a.messages} mensagens`).join('\n') : 'Não disponível'}
-
-INSTRUÇÕES:
+  context += `INSTRUÇÕES GERAIS:
 - Analise os dados e dê insights úteis sobre o desempenho
-- Se o usuário perguntar sobre uma métrica específica, destaque-a com detalhes
-- Se perguntar "como estão as campanhas", faça um resumo geral com pontos positivos e pontos de atenção
+- Seja direto e não escreva textos muito longos
+- Use tabelas simples ou listas para organizar informações
 - Sugira melhorias quando achar relevante
 - Compare métricas entre campanhas quando fizer sentido
-- Use tabelas simples ou listas para organizar informações quando necessário
-- Seja direto e não escreva textos muito longos`;
+- Compare períodos quando o usuário demonstrar interesse
+- Sempre pergunte o período quando o usuário fizer perguntas gerais`;
+
+  return context;
 }
 
 interface ChatMessage {
@@ -206,13 +229,20 @@ export async function POST(
       return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
     }
 
-    const clientData = await fetchClientData(
-      client.metaAdsAccountId,
-      client.metaAdsAccessToken,
-      period
-    );
+    // Busca dados de TODOS os períodos para o contexto da IA
+    const [data30d, data15d, data7d] = await Promise.all([
+      fetchClientDataForPeriod(client.metaAdsAccountId, client.metaAdsAccessToken, '30d'),
+      fetchClientDataForPeriod(client.metaAdsAccountId, client.metaAdsAccessToken, '15d'),
+      fetchClientDataForPeriod(client.metaAdsAccountId, client.metaAdsAccessToken, '7d'),
+    ]);
 
-    const systemPrompt = buildContext(client.name, clientData, period);
+    const allData: Record<string, any> = {
+      '7d': data7d,
+      '15d': data15d,
+      '30d': data30d,
+    };
+
+    const systemPrompt = buildContext(client.name, allData, period);
 
     const recentHistory = history.slice(-10).map((h) => ({
       role: h.role,
