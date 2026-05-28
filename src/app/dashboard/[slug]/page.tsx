@@ -144,10 +144,25 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
     Mensagens: d.messages,
   }));
 
-  // Dados para gráfico de pizza por gênero
-  const genderPieData = genderBreakdown.map((g: any) => ({
+  // Cores: Masculino = Azul, Feminino = Rosa, Desconhecido = Cinza
+  const GENDER_COLOR_MAP: Record<string, string> = {
+    male: '#3B82F6',
+    female: '#EC4899',
+    unknown: '#6B7280',
+  };
+  const GENDER_ORDER = ['male', 'female', 'unknown'];
+
+  // Ordenar e mapear dados de gênero
+  const sortedGenderBreakdown = [...genderBreakdown].sort(
+    (a: any, b: any) => GENDER_ORDER.indexOf(a.gender) - GENDER_ORDER.indexOf(b.gender)
+  );
+
+  // Dados para gráfico de pizza por gênero - usando impressões (entrega)
+  const genderPieData = sortedGenderBreakdown.map((g: any) => ({
     name: g.label,
-    value: g.messages || 0,
+    gender: g.gender,
+    value: g.impressions || 0,
+    messages: g.messages || 0,
     spend: g.spend || 0,
   }));
 
@@ -158,8 +173,6 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
     Mensagens: a.messages,
     Cliques: a.clicks,
   }));
-
-  const GENDER_COLORS = ['#3B82F6', '#EC4899', '#6B7280']; // Azul, Rosa, Cinza
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0A0B0D] text-white font-sans">
@@ -315,12 +328,15 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
                         <PieChart>
                           <Pie data={genderPieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value">
                             {genderPieData.map((entry: any, index: number) => (
-                              <Cell key={`cell-${index}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={GENDER_COLOR_MAP[entry.gender] || '#6B7280'} 
+                              />
                             ))}
                           </Pie>
                           <Tooltip 
                             contentStyle={{backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff'}}
-                            formatter={(value: number, name: string) => [`${value} mensagens`, name]}
+                            formatter={(value: number, name: string) => [`${formatNumber(value)} impressões`, name]}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -332,17 +348,18 @@ export default function ClientDashboard({ params }: { params: Promise<{ slug: st
                     </div>
                     <div className="w-full mt-4 space-y-2">
                       {genderPieData.map((entry: any, index: number) => {
-                        const totalMessages = genderPieData.reduce((sum: number, item: any) => sum + item.value, 0);
-                        const percentage = totalMessages > 0 ? ((entry.value / totalMessages) * 100).toFixed(1) : '0';
+                        const totalImpressions = genderPieData.reduce((sum: number, item: any) => sum + item.value, 0);
+                        const percentage = totalImpressions > 0 ? ((entry.value / totalImpressions) * 100).toFixed(1) : '0';
+                        const color = GENDER_COLOR_MAP[entry.gender] || '#6B7280';
                         return (
                           <div key={index} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{backgroundColor: GENDER_COLORS[index % GENDER_COLORS.length]}}></div>
-                              <User size={12} className={index === 0 ? 'text-blue-400' : index === 1 ? 'text-pink-400' : 'text-gray-400'} />
+                              <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}}></div>
+                              <User size={12} style={{color}} />
                               <span className="text-gray-400">{entry.name}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-300">{entry.value} msgs</span>
+                              <span className="text-gray-300">{formatNumber(entry.value)} imp.</span>
                               <span className="text-gray-500">({percentage}%)</span>
                             </div>
                           </div>
