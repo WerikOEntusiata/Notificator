@@ -43,6 +43,10 @@ function extractMessages(data: any): number {
   return count;
 }
 
+const CAMPAIGN_STATUS_FILTER = encodeURIComponent(JSON.stringify([
+  { "field": "campaign.effective_status", "operator": "NOT_IN", "value": ["DELETED", "ARCHIVED"] }
+]));
+
 async function fetchMetaAdsData(accountId: string, accessToken: string, period: string = '30d') {
   const formattedId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
   const baseUrl = `https://graph.facebook.com/v19.0/${formattedId}/insights`;
@@ -93,37 +97,39 @@ async function fetchMetaAdsData(accountId: string, accessToken: string, period: 
     };
 
     const campRes = await fetch(
-      `${baseUrl}?access_token=${accessToken}&level=campaign&fields=campaign_id,campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
+      `${baseUrl}?access_token=${accessToken}&level=campaign&fields=campaign_id,campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50&filtering=${CAMPAIGN_STATUS_FILTER}`
     );
     const campJson = await campRes.json();
 
     let finalCampaigns: any[] = [];
     if (campJson.data && campJson.data.length > 0) {
-      finalCampaigns = campJson.data.map((c: any, i: number) => ({
-        id: `meta-${i}`,
-        campaignId: c.campaign_id || '',
-        campaignName: c.campaign_name,
-        adSetName: 'Ver Detalhes',
-        adName: c.name || 'Ver Detalhes',
-        spend: parseFloat(c.spend || '0'),
-        impressions: parseInt(c.impressions || '0'),
-        clicks: parseInt(c.clicks || '0'),
-        reach: parseInt(c.reach || '0'),
-        messages: extractMessages(c),
-        cpm: parseFloat(c.cpm || '0'),
-        ctr: parseFloat(c.ctr || '0'),
-        cpc: parseFloat(c.cpc || '0'),
-        frequency: parseFloat(c.frequency || '0'),
-        conversions: extractMessages(c),
-        roas: 0,
-        videoView25: 0,
-        videoView75: 0,
-      }));
+      finalCampaigns = campJson.data
+        .filter((c: any) => parseFloat(c.spend || '0') > 0 || parseInt(c.impressions || '0') > 0)
+        .map((c: any, i: number) => ({
+          id: `meta-${i}`,
+          campaignId: c.campaign_id || '',
+          campaignName: c.campaign_name,
+          adSetName: 'Ver Detalhes',
+          adName: c.name || 'Ver Detalhes',
+          spend: parseFloat(c.spend || '0'),
+          impressions: parseInt(c.impressions || '0'),
+          clicks: parseInt(c.clicks || '0'),
+          reach: parseInt(c.reach || '0'),
+          messages: extractMessages(c),
+          cpm: parseFloat(c.cpm || '0'),
+          ctr: parseFloat(c.ctr || '0'),
+          cpc: parseFloat(c.cpc || '0'),
+          frequency: parseFloat(c.frequency || '0'),
+          conversions: extractMessages(c),
+          roas: 0,
+          videoView25: 0,
+          videoView75: 0,
+        }));
     }
 
     // Buscar breakdown por gênero
     const genderRes = await fetch(
-      `${baseUrl}?access_token=${accessToken}&fields=spend,impressions,clicks,actions&time_range=${encodeURIComponent(timeRange)}&breakdowns=gender`
+      `${baseUrl}?access_token=${accessToken}&fields=spend,impressions,clicks,actions&time_range=${encodeURIComponent(timeRange)}&breakdowns=gender&filtering=${CAMPAIGN_STATUS_FILTER}`
     );
     const genderJson = await genderRes.json();
     
@@ -141,7 +147,7 @@ async function fetchMetaAdsData(accountId: string, accessToken: string, period: 
 
     // Buscar breakdown por idade
     const ageRes = await fetch(
-      `${baseUrl}?access_token=${accessToken}&fields=spend,impressions,clicks,actions&time_range=${encodeURIComponent(timeRange)}&breakdowns=age`
+      `${baseUrl}?access_token=${accessToken}&fields=spend,impressions,clicks,actions&time_range=${encodeURIComponent(timeRange)}&breakdowns=age&filtering=${CAMPAIGN_STATUS_FILTER}`
     );
     const ageJson = await ageRes.json();
     

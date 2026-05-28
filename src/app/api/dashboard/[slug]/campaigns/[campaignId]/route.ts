@@ -48,7 +48,7 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
     }
 
     if (!totalsJson.data || totalsJson.data.length === 0) {
-      return { error: 'Nenhum dado encontrado para esta campanha', status: 'no-data' };
+      return { error: 'Campanha não encontrada ou sem dados', status: 'no-data' };
     }
 
     const t = totalsJson.data[0];
@@ -72,12 +72,11 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       messageRate: clicks > 0 ? (msgs / clicks) * 100 : 0,
     };
 
-    // 2. Breakdown por Gênero - usa 'actions' em vez de 'messages'
+    // 2. Breakdown por Gênero
     const genderRes = await fetch(
       `${baseUrl}/insights?access_token=${accessToken}&fields=spend,impressions,clicks,actions&time_range=${encodeURIComponent(timeRange)}&breakdowns=gender`
     );
     const genderJson = await genderRes.json();
-    console.log('Gender breakdown response:', JSON.stringify(genderJson).substring(0, 500));
 
     const genderBreakdown = (genderJson.data || []).map((g: any) => ({
       gender: g.gender || 'unknown',
@@ -88,12 +87,11 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       messages: extractMessages(g),
     }));
 
-    // 3. Breakdown por Idade - usa 'actions' em vez de 'messages'
+    // 3. Breakdown por Idade
     const ageRes = await fetch(
       `${baseUrl}/insights?access_token=${accessToken}&fields=spend,impressions,clicks,actions&time_range=${encodeURIComponent(timeRange)}&breakdowns=age`
     );
     const ageJson = await ageRes.json();
-    console.log('Age breakdown response:', JSON.stringify(ageJson).substring(0, 500));
 
     const ageBreakdown = (ageJson.data || []).map((a: any) => ({
       ageRange: a.age || 'Desconhecido',
@@ -106,13 +104,18 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       return order.indexOf(a.ageRange) - order.indexOf(b.ageRange);
     });
 
-    // 4. Breakdown por Ad Set
+    // 4. Breakdown por Ad Set (apenas ativos)
+    const adSetFilter = encodeURIComponent(JSON.stringify([
+      { "field": "adset.effective_status", "operator": "NOT_IN", "value": ["DELETED", "ARCHIVED"] }
+    ]));
     const adSetRes = await fetch(
-      `${baseUrl}/insights?access_token=${accessToken}&level=adset&fields=adset_id,adset_name,${metricFields}&time_range=${encodeURIComponent(timeRange)}&limit=100`
+      `${baseUrl}/insights?access_token=${accessToken}&level=adset&fields=adset_id,adset_name,${metricFields}&time_range=${encodeURIComponent(timeRange)}&limit=100&filtering=${adSetFilter}`
     );
     const adSetJson = await adSetRes.json();
 
-    const adSets = (adSetJson.data || []).map((a: any) => {
+    const adSets = (adSetJson.data || [])
+      .filter((a: any) => parseFloat(a.spend || '0') > 0 || parseInt(a.impressions || '0') > 0)
+      .map((a: any) => {
       const aMsgs = extractMessages(a);
       return {
         id: a.adset_id,
@@ -129,13 +132,18 @@ async function fetchCampaignDetails(campaignId: string, accessToken: string, per
       };
     });
 
-    // 5. Breakdown por Anúncio
+    // 5. Breakdown por Anúncio (apenas ativos)
+    const adFilter = encodeURIComponent(JSON.stringify([
+      { "field": "ad.effective_status", "operator": "NOT_IN", "value": ["DELETED", "ARCHIVED"] }
+    ]));
     const adRes = await fetch(
-      `${baseUrl}/insights?access_token=${accessToken}&level=ad&fields=ad_id,ad_name,${metricFields}&time_range=${encodeURIComponent(timeRange)}&limit=100`
+      `${baseUrl}/insights?access_token=${accessToken}&level=ad&fields=ad_id,ad_name,${metricFields}&time_range=${encodeURIComponent(timeRange)}&limit=100&filtering=${adFilter}`
     );
     const adJson = await adRes.json();
 
-    const ads = (adJson.data || []).map((a: any) => {
+    const ads = (adJson.data || [])
+      .filter((a: any) => parseFloat(a.spend || '0') > 0 || parseInt(a.impressions || '0') > 0)
+      .map((a: any) => {
       const aMsgs = extractMessages(a);
       return {
         id: a.ad_id,

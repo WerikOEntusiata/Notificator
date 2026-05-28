@@ -43,6 +43,10 @@ function extractMessages(data: any): number {
   return count;
 }
 
+const CAMPAIGN_STATUS_FILTER = encodeURIComponent(JSON.stringify([
+  { "field": "campaign.effective_status", "operator": "NOT_IN", "value": ["DELETED", "ARCHIVED"] }
+]));
+
 async function fetchMetaAdsData(period: string = '30d') {
   const token = process.env.META_ADS_ACCESS_TOKEN;
   const accountId = process.env.META_ADS_ACCOUNT_ID;
@@ -97,13 +101,15 @@ async function fetchMetaAdsData(period: string = '30d') {
     };
 
     const campRes = await fetch(
-      `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_id,campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50`
+      `${baseUrl}?access_token=${token}&level=campaign&fields=campaign_id,campaign_name,${baseFields}&time_range=${encodeURIComponent(timeRange)}&limit=50&filtering=${CAMPAIGN_STATUS_FILTER}`
     );
     const campJson = await campRes.json();
 
     let finalCampaigns: any[] = [];
     if (campJson.data && campJson.data.length > 0) {
-      finalCampaigns = campJson.data.map((c: any, i: number) => {
+      finalCampaigns = campJson.data
+        .filter((c: any) => parseFloat(c.spend || '0') > 0 || parseInt(c.impressions || '0') > 0)
+        .map((c: any, i: number) => {
          const campMsgs = extractMessages(c);
          const campSpend = parseFloat(c.spend || '0');
          return {
