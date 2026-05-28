@@ -34,7 +34,12 @@ export async function POST(request: NextRequest) {
 
     const db = await getDb();
     if (!db.data) {
-      db.data = { examples: [], metrics: { campaigns: [], daily: [], totals: {} }, clients: [], settings: { metaAccessToken: '' } };
+      db.data = {
+        examples: [],
+        metrics: { campaigns: [], daily: [], totals: {} },
+        clients: [],
+        settings: { metaAccessToken: '' }
+      };
     }
     if (!db.data.clients) {
       db.data.clients = [];
