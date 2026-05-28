@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Plus, RefreshCw, Shield, LogOut } from 'lucide-react';
+import { Plus, RefreshCw, Shield, LogOut, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import ClientList from '@/components/admin/ClientList';
 import ClientForm from '@/components/admin/ClientForm';
+import SettingsPanel from '@/components/admin/SettingsPanel';
 
 interface Client {
   id: string;
@@ -18,12 +18,29 @@ interface Client {
   isActive: boolean;
 }
 
+interface Settings {
+  metaAccessToken: string;
+}
+
 export default function AdminPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const router = useRouter();
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(data);
+      }
+    } catch {
+      // Ignora erro
+    }
+  }, []);
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
@@ -33,7 +50,7 @@ export default function AdminPage() {
         const data = await res.json();
         setClients(data);
       }
-    } catch (error) {
+    } catch {
       toast.error('Erro ao carregar clientes');
     } finally {
       setLoading(false);
@@ -41,8 +58,9 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    fetchSettings();
     fetchClients();
-  }, [fetchClients]);
+  }, [fetchSettings, fetchClients]);
 
   const handleSave = () => {
     setShowForm(false);
@@ -70,6 +88,8 @@ export default function AdminPage() {
     }
   };
 
+  const isTokenConfigured = !!settings?.metaAccessToken;
+
   return (
     <div className="min-h-screen bg-[#0A0B0D] text-white">
       <header className="border-b border-gray-800 bg-[#18191A] p-4">
@@ -89,10 +109,22 @@ export default function AdminPage() {
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
-              onClick={fetchClients}
+              onClick={() => { fetchClients(); fetchSettings(); }}
               disabled={loading}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 ${isTokenConfigured 
+                ? 'border-green-700 text-green-400 hover:bg-green-900/30' 
+                : 'border-yellow-700 text-yellow-400 hover:bg-yellow-900/30'}`}
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <Settings size={14} className="mr-1" />
+              Configurações
+              {showSettings ? <ChevronUp size={14} className="ml-1" /> : <ChevronDown size={14} className="ml-1" />}
             </Button>
             <Button
               onClick={() => { setEditingClient(null); setShowForm(true); }}
@@ -115,9 +147,22 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-5xl mx-auto w-full p-4 space-y-4">
+        {/* Painel de Configurações (colapsável) */}
+        {showSettings && (
+          <SettingsPanel
+            settings={settings}
+            onSave={(newSettings) => {
+              setSettings(newSettings);
+              toast.success('Token atualizado!');
+            }}
+          />
+        )}
+
+        {/* Formulário de cliente */}
         {showForm && (
           <ClientForm
             client={editingClient || undefined}
+            globalToken={settings?.metaAccessToken || ''}
             onSave={handleSave}
             onCancel={handleCancel}
           />
