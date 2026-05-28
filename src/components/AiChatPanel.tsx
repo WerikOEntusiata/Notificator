@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Send, Bot, User, Loader2, MessageCircle, X, Trash2, Lock, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -31,7 +31,7 @@ export default function AiChatPanel({ slug, period }: AiChatPanelProps) {
   const passwordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ { behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
   useEffect(() => {
@@ -112,11 +112,7 @@ export default function AiChatPanel({ slug, period }: AiChatPanelProps) {
   };
 
   const handleOpenClose = () => {
-    if (isOpen) {
-      setIsOpen(false);
-    } else {
-      setIsOpen(true);
-    }
+    setIsOpen(!isOpen);
   };
 
   return (
@@ -250,13 +246,19 @@ export default function AiChatPanel({ slug, period }: AiChatPanelProps) {
                         </div>
                       )}
                       <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                           msg.role === 'user'
                             ? 'bg-blue-600 text-white rounded-br-md'
                             : 'bg-[#242526] text-gray-300 border border-gray-700/50 rounded-bl-md'
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        {msg.role === 'user' ? (
+                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        ) : (
+                          <div className="markdown-content prose prose-invert prose-sm max-w-none prose-headings:text-gray-200 prose-p:text-gray-300 prose-strong:text-white prose-em:text-blue-400 prose-code:text-purple-400 prose-code:bg-[#2D2D30] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-[#2D2D30] prose-pre:border prose-pre:border-gray-700 prose-li:text-gray-300 prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline prose-table:text-gray-300 prose-th:text-gray-200 prose-td:text-gray-300 prose-th:border-gray-600 prose-td:border-gray-600">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                       {msg.role === 'user' && (
                         <div className="w-7 h-7 bg-gray-600 rounded-full flex items-center justify-center shrink-0 mt-1">
